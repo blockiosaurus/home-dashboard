@@ -25,6 +25,15 @@ export const seedDefaultScene = (db: Database.Database) => {
       h: 4,
       config: { view: 'week' },
     },
+    {
+      instanceId: 'photos-1',
+      widgetId: 'slideshow',
+      x: 5,
+      y: 7,
+      w: 3,
+      h: 5,
+      config: { albumId: 'placeholder' },
+    },
   ]
   db.prepare(
     `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)

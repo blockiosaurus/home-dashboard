@@ -5,6 +5,8 @@ import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
 import weatherDef from '@dashboard/widget-weather'
 import { createWeatherBackend } from '@dashboard/widget-weather/backend'
+import slideshowDef from '@dashboard/widget-slideshow'
+import { createSlideshowBackend } from '@dashboard/widget-slideshow/backend'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
@@ -16,6 +18,9 @@ import { registerScenesRoutes } from './routes/scenes'
 import { registerStatic } from './static'
 import { startSyncService } from './sync/service'
 import { fetchWeather } from './sync/weather-client'
+import { listAlbumMedia } from './sync/google-photos'
+import { createAccessTokenProvider } from './auth/access-token'
+import { refreshAccessToken } from './auth/google'
 import { createBroker } from './ws/broker'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
@@ -49,8 +54,31 @@ export const buildApp = async (opts: AppOptions) => {
     socket.on('close', unsub)
   })
 
+  const machineId = (() => {
+    try {
+      return readFileSync('/etc/machine-id', 'utf8').trim()
+    } catch {
+      return 'dev-machine'
+    }
+  })()
+
   const widgetRegistry = createRegistry()
   widgetRegistry.register({ ...weatherDef, backend: createWeatherBackend(fetchWeather) })
+
+  const getAccessToken =
+    opts.googleClientId && opts.googleClientSecret
+      ? createAccessTokenProvider({
+          db: db.raw,
+          machineId,
+          refresh: (rt) =>
+            refreshAccessToken(opts.googleClientId as string, opts.googleClientSecret as string, rt),
+        })
+      : async () => null
+
+  widgetRegistry.register({
+    ...slideshowDef,
+    backend: createSlideshowBackend(listAlbumMedia, getAccessToken),
+  })
 
   const widgetInstances = (() => {
     const scene = db.raw
@@ -77,14 +105,6 @@ export const buildApp = async (opts: AppOptions) => {
   registerAccountsRoutes(app, db.raw)
 
   await registerStatic(app)
-
-  const machineId = (() => {
-    try {
-      return readFileSync('/etc/machine-id', 'utf8').trim()
-    } catch {
-      return 'dev-machine'
-    }
-  })()
 
   registerOauthRoutes(app, db.raw, {
     ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),

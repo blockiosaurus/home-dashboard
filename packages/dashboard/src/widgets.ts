@@ -11,3 +11,7 @@ registerWidgetLoader('weather', () =>
 registerWidgetLoader('agenda', () =>
   import('@dashboard/widget-agenda').then((m) => m.default),
 )
+
+registerWidgetLoader('slideshow', () =>
+  import('@dashboard/widget-slideshow').then((m) => m.default),
+)
