@@ -19,3 +19,7 @@ registerWidgetLoader('slideshow', () =>
 registerWidgetLoader('chores', () =>
   import('@dashboard/widget-chores').then((m) => m.default),
 )
+
+registerWidgetLoader('meal-plan', () =>
+  import('@dashboard/widget-meal-plan').then((m) => m.default),
+)

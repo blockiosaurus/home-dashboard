@@ -31,6 +31,7 @@ describe('seedDefaultScene', () => {
       expect.objectContaining({ widgetId: 'calendar' }),
       expect.objectContaining({ widgetId: 'slideshow' }),
       expect.objectContaining({ widgetId: 'chores' }),
+      expect.objectContaining({ widgetId: 'meal-plan' }),
     ])
     close()
   })
