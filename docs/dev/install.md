@@ -8,6 +8,22 @@
 - The Pi attached to your home WiFi
 - A Google Cloud OAuth 2.0 client of type "TVs and Limited Input devices"
 
+## Running locally for development
+
+Copy `.env.example` to `.env` at the repo root and fill in your Google OAuth
+client id + secret:
+
+    cp .env.example .env
+    # edit .env with your editor
+
+Then start the server (it auto-loads `.env`):
+
+    pnpm install
+    pnpm -r build
+    pnpm --filter @dashboard/server start
+
+Open the admin at http://localhost:3000/admin/ to run the wizard.
+
 ## First boot
 
 After flashing Raspberry Pi OS Bookworm:
@@ -24,10 +40,16 @@ After flashing Raspberry Pi OS Bookworm:
 
        sudo scripts/install.sh --repo-dir /opt/dashboard --yes
 
-4. Edit `/etc/dashboard/env` and paste your Google OAuth client id + secret:
+4. Configure your Google OAuth client id + secret. On the Pi, prefer the
+   systemd-managed file at `/etc/dashboard/env` (root-owned, 0640):
 
        sudo nano /etc/dashboard/env
        sudo systemctl restart dashboard
+
+   For dev or non-Pi installs, copy the template at the repo root:
+
+       cp .env.example .env
+       # edit .env
 
 5. From any phone on your WiFi, open `http://dashboard.local/admin/` (or use the IP printed
    at the end of the installer output). Walk through the wizard.
