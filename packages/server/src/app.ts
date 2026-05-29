@@ -19,6 +19,7 @@ import { registerGoogleAlbumsRoute } from './routes/google-albums'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerWidgetStateRoutes } from './routes/widget-state'
+import { registerSystemRoutes } from './routes/system'
 import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
 import { listAlbumMedia } from './sync/google-photos'
@@ -114,6 +115,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerAccountsRoutes(app, db.raw)
   registerWidgetsListRoute(app)
   registerPeopleRoutes(app, db.raw)
+  registerSystemRoutes(app, db.raw)
 
   await registerStatic(app)
 
