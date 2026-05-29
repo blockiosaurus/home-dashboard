@@ -1,9 +1,9 @@
 import { fetch } from 'undici'
 
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/photoslibrary.readonly',
-].join(' ')
+// Google deprecated the user-facing photoslibrary.readonly scope on
+// 2025-03-31. After that date, OAuth clients requesting it get a 400 from
+// the device-code endpoint. We now request only Calendar.
+const SCOPES = ['https://www.googleapis.com/auth/calendar'].join(' ')
 
 export interface DeviceFlowStart {
   deviceCode: string
@@ -19,7 +19,10 @@ export const startDeviceFlow = async (clientId: string): Promise<DeviceFlowStart
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: clientId, scope: SCOPES }),
   })
-  if (!res.ok) throw new Error(`device flow start failed: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`device flow start failed: ${res.status} ${body}`)
+  }
   const j = (await res.json()) as {
     device_code: string
     user_code: string

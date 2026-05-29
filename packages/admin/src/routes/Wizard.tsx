@@ -87,9 +87,8 @@ export const Wizard = () => {
                   {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
                   <br />
                   <span className="text-xs text-red-600">
-                    Make sure <code>GOOGLE_CLIENT_ID</code> and{' '}
-                    <code>GOOGLE_CLIENT_SECRET</code> are set in the server environment, then
-                    restart the dashboard service.
+                    Make sure <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>{' '}
+                    are set in the server environment, then restart the dashboard service.
                   </span>
                 </p>
               ) : null}

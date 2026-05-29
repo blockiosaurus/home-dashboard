@@ -1,7 +1,7 @@
-import { config as dotenv } from 'dotenv'
 import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { config as dotenv } from 'dotenv'
 
 const here = dirname(fileURLToPath(import.meta.url))
 

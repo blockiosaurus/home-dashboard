@@ -8,6 +8,14 @@ if (envFile.loaded) {
 }
 
 const config = loadConfig(process.env)
+
+const hasGoogleId = Boolean(config.googleClientId && config.googleClientId.length > 0)
+const hasGoogleSecret = Boolean(config.googleClientSecret && config.googleClientSecret.length > 0)
+console.log(
+  `google oauth: ${hasGoogleId && hasGoogleSecret ? 'configured' : 'NOT configured'} ` +
+    `(client_id=${hasGoogleId ? 'set' : 'empty'}, client_secret=${hasGoogleSecret ? 'set' : 'empty'})`,
+)
+
 const app = await buildApp({
   dataDir: config.dataDir,
   ...(config.googleClientId !== undefined ? { googleClientId: config.googleClientId } : {}),

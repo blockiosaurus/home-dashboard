@@ -20,13 +20,21 @@ export const registerOauthRoutes = (
       reply.code(400)
       return { error: 'google client id not configured' }
     }
-    const flow = await startDeviceFlow(config.clientId)
-    pending.set(flow.deviceCode, { ...flow, startedAt: Date.now() })
-    return {
-      userCode: flow.userCode,
-      verificationUrl: flow.verificationUrl,
-      expiresAt: flow.expiresAt,
-      deviceCode: flow.deviceCode,
+    try {
+      const flow = await startDeviceFlow(config.clientId)
+      pending.set(flow.deviceCode, { ...flow, startedAt: Date.now() })
+      return {
+        userCode: flow.userCode,
+        verificationUrl: flow.verificationUrl,
+        expiresAt: flow.expiresAt,
+        deviceCode: flow.deviceCode,
+      }
+    } catch (err) {
+      app.log.error({ err }, 'device flow start failed')
+      reply.code(502)
+      return {
+        error: err instanceof Error ? err.message : 'google device flow failed',
+      }
     }
   })
 
