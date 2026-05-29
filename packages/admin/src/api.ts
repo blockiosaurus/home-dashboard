@@ -109,4 +109,8 @@ export const api = {
     const res = await fetch(`/api/scene-schedule/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('schedule delete failed')
   },
+  deleteAccount: async (id: string) => {
+    const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) throw new Error('account delete failed')
+  },
 }
