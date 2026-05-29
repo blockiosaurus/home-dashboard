@@ -12,7 +12,14 @@ export const api = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(scene),
     })
-    if (!res.ok) throw new Error('scene save failed')
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as {
+        error?: string
+        issues?: Array<{ path: string; message: string }>
+      }
+      const details = body.issues?.map((i) => `${i.path}: ${i.message}`).join('; ')
+      throw new Error(body.error ? `${body.error}${details ? ` — ${details}` : ''}` : 'scene save failed')
+    }
     return res.json()
   },
   getWidgets: async () => {

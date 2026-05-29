@@ -87,8 +87,13 @@ export const SceneEditor = () => {
           </Button>
         </div>
       </div>
+      {publish.isError ? (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          {publish.error instanceof Error ? publish.error.message : 'Publish failed.'}
+        </div>
+      ) : null}
       <div className="flex flex-1 gap-3">
-        <WidgetPalette onAdd={onAddWidget} />
+        <WidgetPalette existing={draft.cells} onAdd={onAddWidget} />
         <div className="flex-1" ref={ref}>
           <GridCanvas
             cells={draft.cells}

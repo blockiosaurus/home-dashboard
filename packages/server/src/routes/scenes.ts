@@ -1,6 +1,7 @@
 import { SceneSchema } from '@dashboard/core'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
+import { ZodError } from 'zod'
 
 export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database) => {
   app.get('/api/scenes', async () => {
@@ -18,7 +19,19 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
   })
 
   app.post('/api/scenes', async (req, reply) => {
-    const scene = SceneSchema.parse(req.body)
+    let scene
+    try {
+      scene = SceneSchema.parse(req.body)
+    } catch (err) {
+      if (err instanceof ZodError) {
+        reply.code(422)
+        return {
+          error: 'invalid scene',
+          issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+        }
+      }
+      throw err
+    }
     const now = Date.now()
     db.prepare(
       `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)

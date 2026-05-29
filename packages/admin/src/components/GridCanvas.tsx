@@ -3,6 +3,7 @@ import { GRID_COLS, GRID_ROWS } from '@dashboard/core'
 import RGL from 'react-grid-layout'
 import type ReactGridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
+import { clampCell } from '../grid-utils'
 
 type Layout = ReactGridLayout.Layout
 
@@ -42,7 +43,7 @@ export const GridCanvas = ({
         cells.map((c) => {
           const l = layout.find((x) => x.i === c.instanceId)
           if (!l) return c
-          return { ...c, x: l.x, y: l.y, w: l.w, h: l.h }
+          return clampCell({ ...c, x: l.x, y: l.y, w: l.w, h: l.h })
         }),
       )
     }
