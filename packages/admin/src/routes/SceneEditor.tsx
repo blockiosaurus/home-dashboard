@@ -1,13 +1,20 @@
+import { Button } from '@dashboard/ui'
 import type { LayoutCell, Scene } from '@dashboard/core'
-import { GRID_COLS, GRID_ROWS } from '@dashboard/core'
-import { useQuery } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
+import { GridCanvas } from '../components/GridCanvas'
+import { WidgetConfigPanel } from '../components/WidgetConfigPanel'
+import { WidgetPalette } from '../components/WidgetPalette'
 import { useEditorStore } from '../store'
 
 export const SceneEditor = () => {
+  const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['scenes'], queryFn: api.getScenes })
-  const { draft, setDraft } = useEditorStore()
+  const { draft, setDraft, setCells, markClean } = useEditorStore()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(800)
 
   useEffect(() => {
     if (!draft && data) {
@@ -16,43 +23,82 @@ export const SceneEditor = () => {
     }
   }, [data, draft, setDraft])
 
+  useEffect(() => {
+    if (!ref.current) return
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width
+      if (w) setWidth(w)
+    })
+    ro.observe(ref.current)
+    return () => ro.disconnect()
+  }, [])
+
+  const publish = useMutation({
+    mutationFn: async () => {
+      if (!draft) return
+      await api.putScene({
+        id: draft.id,
+        name: draft.name,
+        isDefault: draft.isDefault,
+        cells: draft.cells,
+      })
+    },
+    onSuccess: () => {
+      markClean()
+      qc.invalidateQueries({ queryKey: ['scenes'] })
+    },
+  })
+
   if (!draft) {
     return <div className="p-6 text-sm text-[var(--text-dim)]">Loading scene…</div>
+  }
+
+  const selectedCell: LayoutCell | null =
+    draft.cells.find((c) => c.instanceId === selectedId) ?? null
+
+  const onCanvasChange = (cells: LayoutCell[]) => setCells(cells)
+
+  const onAddWidget = (cell: LayoutCell) => setCells([...draft.cells, cell])
+
+  const onConfigChange = (next: LayoutCell) =>
+    setCells(draft.cells.map((c) => (c.instanceId === next.instanceId ? next : c)))
+
+  const onDelete = (instanceId: string) => {
+    setCells(draft.cells.filter((c) => c.instanceId !== instanceId))
+    setSelectedId(null)
   }
 
   return (
     <div className="flex h-full flex-col gap-3 p-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{draft.name}</h1>
-        {draft.dirty ? (
-          <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
-            Unpublished
-          </span>
-        ) : (
-          <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
-            Live
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {draft.dirty ? (
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-700">
+              Unpublished
+            </span>
+          ) : (
+            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700">
+              Live
+            </span>
+          )}
+          <Button onClick={() => publish.mutate()} disabled={!draft.dirty || publish.isPending}>
+            {publish.isPending ? 'Publishing…' : 'Publish'}
+          </Button>
+        </div>
       </div>
-      <div
-        className="grid gap-2 rounded-2xl bg-white p-4 shadow-[var(--shadow-card)]"
-        style={{
-          gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)`,
-          gridTemplateRows: `repeat(${GRID_ROWS}, 40px)`,
-        }}
-      >
-        {draft.cells.map((c: LayoutCell) => (
-          <div
-            key={c.instanceId}
-            className="flex items-center justify-center rounded-lg border-2 border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5 text-xs font-semibold text-[var(--accent)]"
-            style={{
-              gridColumn: `${c.x + 1} / span ${c.w}`,
-              gridRow: `${c.y + 1} / span ${c.h}`,
-            }}
-          >
-            {c.widgetId}
-          </div>
-        ))}
+      <div className="flex flex-1 gap-3">
+        <WidgetPalette onAdd={onAddWidget} />
+        <div className="flex-1" ref={ref}>
+          <GridCanvas
+            cells={draft.cells}
+            onChange={onCanvasChange}
+            onSelect={setSelectedId}
+            selectedInstanceId={selectedId}
+            width={width}
+          />
+        </div>
+        <WidgetConfigPanel cell={selectedCell} onChange={onConfigChange} onDelete={onDelete} />
       </div>
     </div>
   )
