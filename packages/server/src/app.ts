@@ -24,6 +24,7 @@ import { registerSystemRoutes } from './routes/system'
 import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
 import { listAlbumMedia } from './sync/google-photos'
+import { startSceneScheduler } from './sync/scene-scheduler'
 import { startSyncService } from './sync/service'
 import { fetchWeather } from './sync/weather-client'
 import { instancesFromScene } from './widgets/instances-from-scene'
@@ -139,6 +140,9 @@ export const buildApp = async (opts: AppOptions) => {
     machineId,
   })
   app.addHook('onClose', async () => sync.stop())
+
+  const sceneSched = startSceneScheduler({ db: db.raw, broker })
+  app.addHook('onClose', async () => sceneSched.stop())
 
   app.addHook('onClose', async () => closeDb())
   return app
