@@ -1,0 +1,24 @@
+:root {
+  --bg-gradient: linear-gradient(135deg, #ffe4ec 0%, #dbeaff 100%);
+  --bg-card: #ffffff;
+  --shadow-card: 0 4px 18px rgba(91, 108, 255, 0.12);
+  --text: #1f2545;
+  --text-dim: #7c84a8;
+  --accent: #5b6cff;
+
+  --color-person-1: #ff7eb6;
+  --color-person-2: #5b6cff;
+  --color-person-3: #ffb13b;
+  --color-person-4: #36c47a;
+
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+
+  --font-family-sans:
+    'Inter', -apple-system, system-ui, 'Segoe UI', sans-serif;
+}
