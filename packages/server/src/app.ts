@@ -12,6 +12,7 @@ import { refreshAccessToken } from './auth/google'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
+import { registerPeopleRoutes } from './routes/people'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerOauthRoutes } from './routes/oauth'
@@ -109,6 +110,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
   registerWidgetsListRoute(app)
+  registerPeopleRoutes(app, db.raw)
 
   await registerStatic(app)
 
