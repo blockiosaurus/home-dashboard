@@ -15,3 +15,7 @@ registerWidgetLoader('agenda', () =>
 registerWidgetLoader('slideshow', () =>
   import('@dashboard/widget-slideshow').then((m) => m.default),
 )
+
+registerWidgetLoader('chores', () =>
+  import('@dashboard/widget-chores').then((m) => m.default),
+)

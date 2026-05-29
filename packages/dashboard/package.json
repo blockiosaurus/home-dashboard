@@ -13,6 +13,7 @@
     "@dashboard/widget-agenda": "workspace:*",
     "@dashboard/widget-calendar": "workspace:*",
     "@dashboard/widget-clock": "workspace:*",
+    "@dashboard/widget-chores": "workspace:*",
     "@dashboard/widget-slideshow": "workspace:*",
     "@dashboard/widget-weather": "workspace:*",
     "@tanstack/react-query": "5.62.7",
