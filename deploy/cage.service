@@ -1,0 +1,38 @@
+[Unit]
+Description=Family Dashboard Kiosk (cage + Chromium)
+After=dashboard.service network-online.target
+Requires=dashboard.service
+
+[Service]
+Type=simple
+User=dashboard
+Group=dashboard
+PAMName=login
+TTYPath=/dev/tty7
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty7
+UtmpMode=user
+
+Environment=XDG_RUNTIME_DIR=/run/user/1001
+Environment=WLR_LIBINPUT_NO_DEVICES=1
+Environment=MOZ_ENABLE_WAYLAND=1
+
+ExecStartPre=/usr/bin/install -d -o dashboard -g dashboard -m 0700 /run/user/1001
+ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
+  --kiosk \
+  --noerrdialogs \
+  --disable-infobars \
+  --check-for-update-interval=31536000 \
+  --no-first-run \
+  --ozone-platform=wayland \
+  --enable-features=UseOzonePlatform \
+  --start-fullscreen \
+  http://localhost:3000/
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
