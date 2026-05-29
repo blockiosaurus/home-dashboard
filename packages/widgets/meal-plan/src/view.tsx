@@ -1,4 +1,4 @@
-import { format, startOfWeek, addDays } from 'date-fns'
+import { addDays, format, startOfWeek } from 'date-fns'
 import { useEffect, useState } from 'react'
 
 export interface MealPlanConfig {
@@ -63,7 +63,10 @@ export const MealPlanView = ({ config }: { config: MealPlanConfig; data: undefin
 
   return (
     <div className="flex h-full flex-col p-3">
-      <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+      <div
+        className="text-xs font-bold uppercase tracking-wider"
+        style={{ color: 'var(--accent)' }}
+      >
         {config.title ?? 'This week'}
       </div>
       <div className="mt-2 flex flex-1 flex-col gap-1 overflow-y-auto">

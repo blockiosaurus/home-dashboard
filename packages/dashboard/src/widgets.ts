@@ -4,30 +4,20 @@ registerWidgetLoader('clock', () => import('@dashboard/widget-clock').then((m) =
 
 registerWidgetLoader('calendar', () => import('@dashboard/widget-calendar').then((m) => m.default))
 
-registerWidgetLoader('weather', () =>
-  import('@dashboard/widget-weather').then((m) => m.default),
-)
+registerWidgetLoader('weather', () => import('@dashboard/widget-weather').then((m) => m.default))
 
-registerWidgetLoader('agenda', () =>
-  import('@dashboard/widget-agenda').then((m) => m.default),
-)
+registerWidgetLoader('agenda', () => import('@dashboard/widget-agenda').then((m) => m.default))
 
 registerWidgetLoader('slideshow', () =>
   import('@dashboard/widget-slideshow').then((m) => m.default),
 )
 
-registerWidgetLoader('chores', () =>
-  import('@dashboard/widget-chores').then((m) => m.default),
-)
+registerWidgetLoader('chores', () => import('@dashboard/widget-chores').then((m) => m.default))
 
 registerWidgetLoader('meal-plan', () =>
   import('@dashboard/widget-meal-plan').then((m) => m.default),
 )
 
-registerWidgetLoader('notes', () =>
-  import('@dashboard/widget-notes').then((m) => m.default),
-)
+registerWidgetLoader('notes', () => import('@dashboard/widget-notes').then((m) => m.default))
 
-registerWidgetLoader('packages', () =>
-  import('@dashboard/widget-packages').then((m) => m.default),
-)
+registerWidgetLoader('packages', () => import('@dashboard/widget-packages').then((m) => m.default))

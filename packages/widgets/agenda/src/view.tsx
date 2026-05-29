@@ -41,7 +41,10 @@ export const AgendaView = ({ config }: { config: AgendaConfig; data: undefined }
 
   return (
     <div className="flex h-full flex-col p-3">
-      <div className="mb-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+      <div
+        className="mb-2 text-xs font-bold uppercase tracking-wider"
+        style={{ color: 'var(--accent)' }}
+      >
         {config.title ?? 'Up next'}
       </div>
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto">

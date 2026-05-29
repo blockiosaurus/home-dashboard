@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openDatabase } from '../db'
-import { createEncryptor, deriveKey } from './encryption'
 import { createAccessTokenProvider } from './access-token'
+import { createEncryptor, deriveKey } from './encryption'
 
 let dir: string
 beforeEach(() => {

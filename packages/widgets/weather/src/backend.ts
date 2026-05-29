@@ -8,7 +8,11 @@ const Config = z.object({
 })
 
 export const createWeatherBackend = (
-  fetcher: (input: { lat: number; lon: number; unit: 'celsius' | 'fahrenheit' }) => Promise<unknown>,
+  fetcher: (input: {
+    lat: number
+    lon: number
+    unit: 'celsius' | 'fahrenheit'
+  }) => Promise<unknown>,
 ): WidgetBackend => ({
   intervalMs: 15 * 60_000,
   run: async (ctx: WidgetBackendContext) => {

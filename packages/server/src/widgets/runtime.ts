@@ -1,6 +1,6 @@
 import type { WidgetDefinition } from '@dashboard/core'
 import type { Broker } from '../ws/broker'
-import { runWidgetBackends, type WidgetInstance } from './cron-runner'
+import { type WidgetInstance, runWidgetBackends } from './cron-runner'
 
 export interface RuntimeArgs {
   broker: Broker
@@ -12,7 +12,6 @@ export const startWidgetRuntime = ({ broker, widgets, instances }: RuntimeArgs) 
   runWidgetBackends({
     widgets,
     instances,
-    publish: (instanceId, payload) =>
-      broker.publish({ type: 'widget:data', instanceId, payload }),
+    publish: (instanceId, payload) => broker.publish({ type: 'widget:data', instanceId, payload }),
     now: () => new Date(),
   })

@@ -35,7 +35,11 @@ export const registerWidgetStateRoutes = (app: FastifyInstance, db: Database.Dat
           body.data,
           body.expectedVersion ?? null,
         )
-        app.broker.publish({ type: 'widget:data', instanceId: req.params.instanceId, payload: record.data })
+        app.broker.publish({
+          type: 'widget:data',
+          instanceId: req.params.instanceId,
+          payload: record.data,
+        })
         return record
       } catch (err) {
         if (String(err).includes('conflict')) {

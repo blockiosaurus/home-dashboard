@@ -88,7 +88,10 @@ export const PackagesView = ({ config }: { config: PackagesConfig; data: undefin
 
   return (
     <div className="flex h-full flex-col p-3">
-      <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+      <div
+        className="text-xs font-bold uppercase tracking-wider"
+        style={{ color: 'var(--accent)' }}
+      >
         {config.title ?? 'Packages'}
       </div>
       <div className="mt-2 flex flex-1 flex-col gap-1 overflow-y-auto">

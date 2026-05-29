@@ -58,7 +58,10 @@ export const NotesView = ({ config }: { config: NotesConfig; data: undefined }) 
 
   return (
     <div className="flex h-full flex-col p-3">
-      <div className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--accent)' }}>
+      <div
+        className="text-xs font-bold uppercase tracking-wider"
+        style={{ color: 'var(--accent)' }}
+      >
         {config.title ?? 'Notes'}
       </div>
       <textarea

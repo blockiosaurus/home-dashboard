@@ -1,30 +1,30 @@
 import { readFileSync } from 'node:fs'
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
+import slideshowDef from '@dashboard/widget-slideshow'
+import { createSlideshowBackend } from '@dashboard/widget-slideshow/backend'
+import weatherDef from '@dashboard/widget-weather'
+import { createWeatherBackend } from '@dashboard/widget-weather/backend'
 import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
-import weatherDef from '@dashboard/widget-weather'
-import { createWeatherBackend } from '@dashboard/widget-weather/backend'
-import slideshowDef from '@dashboard/widget-slideshow'
-import { createSlideshowBackend } from '@dashboard/widget-slideshow/backend'
+import { createAccessTokenProvider } from './auth/access-token'
+import { refreshAccessToken } from './auth/google'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerEventWritesRoutes } from './routes/event-writes'
-import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerEventsRoutes } from './routes/events'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
+import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerStatic } from './static'
+import { listAlbumMedia } from './sync/google-photos'
 import { startSyncService } from './sync/service'
 import { fetchWeather } from './sync/weather-client'
-import { listAlbumMedia } from './sync/google-photos'
-import { createAccessTokenProvider } from './auth/access-token'
-import { refreshAccessToken } from './auth/google'
-import { createBroker } from './ws/broker'
+import { instancesFromScene } from './widgets/instances-from-scene'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
-import { instancesFromScene } from './widgets/instances-from-scene'
+import { createBroker } from './ws/broker'
 
 export interface AppOptions {
   dataDir: string
@@ -71,7 +71,11 @@ export const buildApp = async (opts: AppOptions) => {
           db: db.raw,
           machineId,
           refresh: (rt) =>
-            refreshAccessToken(opts.googleClientId as string, opts.googleClientSecret as string, rt),
+            refreshAccessToken(
+              opts.googleClientId as string,
+              opts.googleClientSecret as string,
+              rt,
+            ),
         })
       : async () => null
 
@@ -81,9 +85,9 @@ export const buildApp = async (opts: AppOptions) => {
   })
 
   const widgetInstances = (() => {
-    const scene = db.raw
-      .prepare('SELECT layout_json FROM scenes WHERE is_default = 1')
-      .get() as { layout_json: string } | undefined
+    const scene = db.raw.prepare('SELECT layout_json FROM scenes WHERE is_default = 1').get() as
+      | { layout_json: string }
+      | undefined
     if (!scene) return []
     return instancesFromScene(JSON.parse(scene.layout_json))
   })()

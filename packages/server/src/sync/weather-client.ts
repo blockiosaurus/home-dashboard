@@ -26,7 +26,12 @@ export const fetchWeather = async (input: WeatherInput): Promise<WeatherData> =>
   const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`)
   if (!res.ok) throw new Error(`open-meteo failed: ${res.status}`)
   const j = (await res.json()) as {
-    current: { temperature_2m: number; weather_code: number; is_day: number; wind_speed_10m: number }
+    current: {
+      temperature_2m: number
+      weather_code: number
+      is_day: number
+      wind_speed_10m: number
+    }
     daily: { temperature_2m_min: number[]; temperature_2m_max: number[] }
   }
   return {

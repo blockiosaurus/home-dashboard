@@ -39,7 +39,9 @@ export const WeatherView = ({
   }
   return (
     <div className="flex h-full flex-col items-center justify-center p-3 text-center">
-      <div className="text-4xl leading-none">{codeToEmoji(data.current.weatherCode, data.current.isDay)}</div>
+      <div className="text-4xl leading-none">
+        {codeToEmoji(data.current.weatherCode, data.current.isDay)}
+      </div>
       <div className="mt-1 text-3xl font-extrabold" style={{ color: 'var(--accent)' }}>
         {Math.round(data.current.temperature)}
         {unit}
@@ -49,7 +51,11 @@ export const WeatherView = ({
         {unit} · L {Math.round(data.today.low)}
         {unit}
       </div>
-      {config.label ? <div className="mt-1 text-[10px] uppercase tracking-wider text-[var(--text-dim)]">{config.label}</div> : null}
+      {config.label ? (
+        <div className="mt-1 text-[10px] uppercase tracking-wider text-[var(--text-dim)]">
+          {config.label}
+        </div>
+      ) : null}
     </div>
   )
 }
