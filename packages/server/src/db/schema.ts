@@ -86,3 +86,11 @@ export const kv = sqliteTable('kv', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
 })
+
+export const widgetState = sqliteTable('widget_state', {
+  instanceId: text('instance_id').primaryKey(),
+  widgetId: text('widget_id').notNull(),
+  version: integer('version').notNull().default(0),
+  data: text('data').notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+})
