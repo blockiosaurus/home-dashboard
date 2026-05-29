@@ -74,9 +74,26 @@ export const Wizard = () => {
             events and a slideshow.
           </p>
           {state.oauthStatus === 'idle' ? (
-            <Button className="mt-4 w-full" onClick={() => start.mutate()}>
-              Start
-            </Button>
+            <>
+              <Button
+                className="mt-4 w-full"
+                onClick={() => start.mutate()}
+                disabled={start.isPending}
+              >
+                {start.isPending ? 'Starting…' : 'Start'}
+              </Button>
+              {start.isError ? (
+                <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+                  {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
+                  <br />
+                  <span className="text-xs text-red-600">
+                    Make sure <code>GOOGLE_CLIENT_ID</code> and{' '}
+                    <code>GOOGLE_CLIENT_SECRET</code> are set in the server environment, then
+                    restart the dashboard service.
+                  </span>
+                </p>
+              ) : null}
+            </>
           ) : state.oauthStatus === 'pending' ? (
             <div className="mt-4 space-y-2">
               <p>1. On any device, visit:</p>

@@ -67,7 +67,10 @@ export const api = {
   },
   oauthStart: async () => {
     const res = await fetch('/api/oauth/start', { method: 'POST' })
-    if (!res.ok) throw new Error('oauth start failed')
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(body.error ?? `oauth start failed (${res.status})`)
+    }
     return res.json() as Promise<{ userCode: string; verificationUrl: string; deviceCode: string }>
   },
   oauthPoll: async (deviceCode: string) => {
