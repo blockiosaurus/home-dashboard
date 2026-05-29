@@ -17,6 +17,7 @@ import { registerEventsRoutes } from './routes/events'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerWidgetStateRoutes } from './routes/widget-state'
+import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
 import { listAlbumMedia } from './sync/google-photos'
 import { startSyncService } from './sync/service'
@@ -107,6 +108,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerEventWritesRoutes(app, db.raw)
   registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
+  registerWidgetsListRoute(app)
 
   await registerStatic(app)
 
