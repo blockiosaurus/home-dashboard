@@ -3,6 +3,7 @@ import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
 import { openDatabase } from './db'
+import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
@@ -18,6 +19,7 @@ export const buildApp = async (opts: AppOptions) => {
   const app = Fastify({ logger: { transport: { target: 'pino-pretty' } } })
   const broker = createBroker()
   const { db, close: closeDb } = openDatabase(opts.dataDir)
+  seedDefaultScene(db.raw)
 
   await app.register(websocket)
 
