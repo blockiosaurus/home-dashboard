@@ -130,19 +130,64 @@ export const Wizard = () => {
   return <DoneStep state={state} onComplete={() => navigate('/editor')} />
 }
 
-// Placeholders that Task 12 will fill in. Right now they just render "Coming next."
+const COLORS = ['#ff7eb6', '#5b6cff', '#ffb13b', '#36c47a']
+
 const PeopleStep = ({
   people,
   onDone,
 }: {
   people: WizardState['people']
   onDone: (next: WizardState['people']) => void
-}) => (
-  <div className="p-6">
-    <p className="mb-4 text-sm">People step (Task 12).</p>
-    <Button onClick={() => onDone(people)}>Continue</Button>
-  </div>
-)
+}) => {
+  const [draft, setDraft] = useState(people)
+  return (
+    <div className="flex h-full items-center justify-center p-6">
+      <Card className="w-full max-w-md">
+        <h1 className="text-2xl font-bold">Family members</h1>
+        <p className="mt-1 text-sm text-[var(--text-dim)]">
+          Up to four — leave blank to skip.
+        </p>
+        <div className="mt-4 space-y-3">
+          {draft.map((p, idx) => (
+            <div key={p.id} className="flex items-center gap-3">
+              <span
+                className="inline-block h-8 w-8 rounded-full"
+                style={{ background: p.color }}
+              />
+              <Input
+                value={p.name}
+                placeholder={`Person ${idx + 1}`}
+                onChange={(e) => {
+                  const next = [...draft]
+                  next[idx] = { ...p, name: e.target.value }
+                  setDraft(next)
+                }}
+              />
+              <select
+                value={p.color}
+                onChange={(e) => {
+                  const next = [...draft]
+                  next[idx] = { ...p, color: e.target.value }
+                  setDraft(next)
+                }}
+                className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-2 py-2 text-sm"
+              >
+                {COLORS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+        <Button className="mt-6 w-full" onClick={() => onDone(draft)}>
+          Continue
+        </Button>
+      </Card>
+    </div>
+  )
+}
 
 const WeatherStep = ({
   weather,
@@ -150,19 +195,109 @@ const WeatherStep = ({
 }: {
   weather: WizardState['weather']
   onDone: (next: WizardState['weather']) => void
-}) => (
-  <div className="p-6">
-    <p className="mb-4 text-sm">Weather step (Task 12).</p>
-    <Button onClick={() => onDone(weather)}>Continue</Button>
-  </div>
-)
+}) => {
+  const [draft, setDraft] = useState(weather)
+  const useGeolocation = () => {
+    if (!navigator.geolocation) return
+    navigator.geolocation.getCurrentPosition(
+      (pos) => setDraft((d) => ({ ...d, lat: pos.coords.latitude, lon: pos.coords.longitude })),
+      () => {},
+    )
+  }
+  return (
+    <div className="flex h-full items-center justify-center p-6">
+      <Card className="w-full max-w-md">
+        <h1 className="text-2xl font-bold">Weather location</h1>
+        <p className="mt-1 text-sm text-[var(--text-dim)]">
+          Used for the weather widget on the dashboard.
+        </p>
+        <div className="mt-4 space-y-3">
+          <Input
+            label="Label"
+            value={draft.label}
+            onChange={(e) => setDraft({ ...draft, label: e.target.value })}
+            placeholder="e.g. Home"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Latitude"
+              type="number"
+              value={String(draft.lat)}
+              onChange={(e) => setDraft({ ...draft, lat: Number(e.target.value) })}
+            />
+            <Input
+              label="Longitude"
+              type="number"
+              value={String(draft.lon)}
+              onChange={(e) => setDraft({ ...draft, lon: Number(e.target.value) })}
+            />
+          </div>
+          <select
+            value={draft.unit}
+            onChange={(e) =>
+              setDraft({ ...draft, unit: e.target.value as 'celsius' | 'fahrenheit' })
+            }
+            className="w-full rounded-lg border border-[var(--text-dim)]/30 bg-white px-3 py-2 text-sm"
+          >
+            <option value="fahrenheit">Fahrenheit</option>
+            <option value="celsius">Celsius</option>
+          </select>
+          <Button variant="ghost" className="w-full" onClick={useGeolocation}>
+            Use this device's location
+          </Button>
+        </div>
+        <Button className="mt-6 w-full" onClick={() => onDone(draft)}>
+          Continue
+        </Button>
+      </Card>
+    </div>
+  )
+}
 
-const AlbumStep = ({ onDone }: { onDone: (id: string | null) => void }) => (
-  <div className="p-6">
-    <p className="mb-4 text-sm">Album step (Task 12).</p>
-    <Button onClick={() => onDone(null)}>Skip</Button>
-  </div>
-)
+const AlbumStep = ({ onDone }: { onDone: (id: string | null) => void }) => {
+  const { data, isLoading, isError } = useQuery({ queryKey: ['albums'], queryFn: api.getAlbums })
+  const [selected, setSelected] = useState<string | null>(null)
+  return (
+    <div className="flex h-full items-center justify-center p-6">
+      <Card className="w-full max-w-md">
+        <h1 className="text-2xl font-bold">Photo slideshow</h1>
+        <p className="mt-1 text-sm text-[var(--text-dim)]">
+          Pick a shared album to play on the dashboard.
+        </p>
+        <div className="mt-4 max-h-72 overflow-y-auto rounded-lg border border-[var(--text-dim)]/20">
+          {isLoading ? (
+            <div className="p-3 text-sm text-[var(--text-dim)]">Loading albums…</div>
+          ) : isError ? (
+            <div className="p-3 text-sm text-red-500">Could not load albums.</div>
+          ) : (
+            (data?.albums ?? []).map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setSelected(a.id)}
+                className={`block w-full px-3 py-2 text-left text-sm ${selected === a.id ? 'bg-[var(--accent)] text-white' : 'hover:bg-gray-50'}`}
+              >
+                {a.title}
+              </button>
+            ))
+          )}
+        </div>
+        <div className="mt-4 flex gap-2">
+          <Button variant="secondary" className="flex-1" onClick={() => onDone(null)}>
+            Skip
+          </Button>
+          <Button
+            className="flex-1"
+            disabled={!selected}
+            onClick={() => onDone(selected)}
+          >
+            Continue
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
 const DoneStep = ({
   state,
