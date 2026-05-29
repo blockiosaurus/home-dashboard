@@ -1,20 +1,24 @@
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
 import websocket from '@fastify/websocket'
 import Fastify from 'fastify'
+import { openDatabase } from './db'
+import { registerAccountsRoutes } from './routes/accounts'
+import { registerEventsRoutes } from './routes/events'
+import { registerScenesRoutes } from './routes/scenes'
 import { createBroker } from './ws/broker'
 
 export interface AppOptions {
   dataDir: string
 }
 
-export const buildApp = async (_opts: AppOptions) => {
+export const buildApp = async (opts: AppOptions) => {
   const app = Fastify({ logger: { transport: { target: 'pino-pretty' } } })
   const broker = createBroker()
+  const { db, close: closeDb } = openDatabase(opts.dataDir)
 
   await app.register(websocket)
 
   app.get('/api/health', async () => ({ status: 'ok' }))
-
   app.get('/ws', { websocket: true }, (socket) => {
     const send = (m: ServerMessage) => socket.send(JSON.stringify(m))
     const unsub = broker.subscribe(send)
@@ -29,6 +33,11 @@ export const buildApp = async (_opts: AppOptions) => {
   })
 
   app.decorate('broker', broker)
+  registerScenesRoutes(app, db.raw)
+  registerEventsRoutes(app, db.raw)
+  registerAccountsRoutes(app, db.raw)
+
+  app.addHook('onClose', async () => closeDb())
   return app
 }
 
