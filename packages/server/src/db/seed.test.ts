@@ -20,11 +20,10 @@ describe('seedDefaultScene', () => {
     const rows = db.all<{ name: string; layout_json: string; is_default: number }>(
       'SELECT name, layout_json, is_default FROM scenes',
     )
-    expect(rows).toHaveLength(1)
-    expect(rows[0]?.name).toBe('Active')
-    const firstRow = rows[0]
-    if (!firstRow) throw new Error('expected one row')
-    expect(JSON.parse(firstRow.layout_json)).toEqual([
+    expect(rows).toHaveLength(2)
+    const activeRow = rows.find((r) => r.name === 'Active')
+    if (!activeRow) throw new Error('expected Active row')
+    expect(JSON.parse(activeRow.layout_json)).toEqual([
       expect.objectContaining({ widgetId: 'clock' }),
       expect.objectContaining({ widgetId: 'weather' }),
       expect.objectContaining({ widgetId: 'agenda' }),
@@ -43,7 +42,23 @@ describe('seedDefaultScene', () => {
     seedDefaultScene(db.raw)
     seedDefaultScene(db.raw)
     const count = db.get<{ n: number }>('SELECT COUNT(*) AS n FROM scenes')
-    expect(count?.n).toBe(1)
+    expect(count?.n).toBe(2)
+    close()
+  })
+
+  it('also seeds a Sleep scene with a schedule rule', () => {
+    const { db, close } = openDatabase(dir)
+    seedDefaultScene(db.raw)
+    const sceneNames = (db.all<{ name: string }>('SELECT name FROM scenes')).map((r) => r.name)
+    expect(sceneNames).toEqual(expect.arrayContaining(['Active', 'Sleep']))
+    const rules = db.all<{ scene_id: string; cron_expr: string }>(
+      'SELECT scene_id, cron_expr FROM scene_schedule',
+    )
+    expect(rules).toHaveLength(2)
+    const sleepRule = rules.find((r) => r.scene_id === 'sleep')
+    const wakeRule = rules.find((r) => r.scene_id === 'default')
+    expect(sleepRule?.cron_expr).toBe('0 22 * * *')
+    expect(wakeRule?.cron_expr).toBe('0 7 * * *')
     close()
   })
 })

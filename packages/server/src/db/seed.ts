@@ -1,10 +1,32 @@
 import type Database from 'better-sqlite3'
 
+const sleepCells = [
+  { instanceId: 'clock-sleep', widgetId: 'clock', x: 0, y: 0, w: 8, h: 2, config: { format: '12h' } },
+  {
+    instanceId: 'agenda-sleep',
+    widgetId: 'agenda',
+    x: 0,
+    y: 2,
+    w: 8,
+    h: 3,
+    config: { daysAhead: 1, title: 'Up next' },
+  },
+  {
+    instanceId: 'photos-sleep',
+    widgetId: 'slideshow',
+    x: 0,
+    y: 5,
+    w: 8,
+    h: 7,
+    config: { albumId: 'placeholder' },
+  },
+]
+
 export const seedDefaultScene = (db: Database.Database) => {
   const existing = db.prepare('SELECT id FROM scenes WHERE is_default = 1').get()
   if (existing) return
   const now = Date.now()
-  const cells = [
+  const activeCells = [
     { instanceId: 'clock-1', widgetId: 'clock', x: 0, y: 0, w: 8, h: 1, config: {} },
     {
       instanceId: 'weather-1',
@@ -15,15 +37,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       h: 2,
       config: { lat: 40.7128, lon: -74.006, unit: 'fahrenheit', label: 'NYC' },
     },
-    {
-      instanceId: 'agenda-1',
-      widgetId: 'agenda',
-      x: 0,
-      y: 1,
-      w: 5,
-      h: 2,
-      config: { daysAhead: 1 },
-    },
+    { instanceId: 'agenda-1', widgetId: 'agenda', x: 0, y: 1, w: 5, h: 2, config: { daysAhead: 1 } },
     {
       instanceId: 'cal-1',
       widgetId: 'calendar',
@@ -79,8 +93,16 @@ export const seedDefaultScene = (db: Database.Database) => {
       config: { instanceId: 'packages-1', title: 'Packages' },
     },
   ]
-  db.prepare(
+  const insert = db.prepare(
     `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)
-     VALUES ('default', 'Active', ?, 1, ?, ?)`,
-  ).run(JSON.stringify(cells), now, now)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+  insert.run('default', 'Active', JSON.stringify(activeCells), 1, now, now)
+  insert.run('sleep', 'Sleep', JSON.stringify(sleepCells), 0, now, now)
+
+  const rule = db.prepare(
+    `INSERT INTO scene_schedule (id, scene_id, cron_expr, priority) VALUES (?, ?, ?, ?)`,
+  )
+  rule.run('sleep-22', 'sleep', '0 22 * * *', 10)
+  rule.run('wake-07', 'default', '0 7 * * *', 10)
 }

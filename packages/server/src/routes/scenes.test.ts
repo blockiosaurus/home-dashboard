@@ -7,9 +7,10 @@ describe('scenes routes', () => {
     const res = await app.inject({ method: 'GET', url: '/api/scenes' })
     expect(res.statusCode).toBe(200)
     const body = res.json() as { scenes: Array<{ name: string; isDefault: boolean }> }
-    expect(body.scenes).toHaveLength(1)
-    expect(body.scenes[0]?.name).toBe('Active')
-    expect(body.scenes[0]?.isDefault).toBe(true)
+    expect(body.scenes).toHaveLength(2)
+    const activeScene = body.scenes.find((s) => s.name === 'Active')
+    expect(activeScene?.name).toBe('Active')
+    expect(activeScene?.isDefault).toBe(true)
     await app.close()
   })
 
