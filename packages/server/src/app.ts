@@ -7,6 +7,7 @@ import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerEventWritesRoutes } from './routes/event-writes'
+import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerEventsRoutes } from './routes/events'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
@@ -47,6 +48,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerScenesRoutes(app, db.raw)
   registerEventsRoutes(app, db.raw)
   registerEventWritesRoutes(app, db.raw)
+  registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
 
   await registerStatic(app)
