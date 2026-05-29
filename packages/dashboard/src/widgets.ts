@@ -27,3 +27,7 @@ registerWidgetLoader('meal-plan', () =>
 registerWidgetLoader('notes', () =>
   import('@dashboard/widget-notes').then((m) => m.default),
 )
+
+registerWidgetLoader('packages', () =>
+  import('@dashboard/widget-packages').then((m) => m.default),
+)

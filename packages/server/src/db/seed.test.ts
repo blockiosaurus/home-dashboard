@@ -33,6 +33,7 @@ describe('seedDefaultScene', () => {
       expect.objectContaining({ widgetId: 'chores' }),
       expect.objectContaining({ widgetId: 'meal-plan' }),
       expect.objectContaining({ widgetId: 'notes' }),
+      expect.objectContaining({ widgetId: 'packages' }),
     ])
     close()
   })

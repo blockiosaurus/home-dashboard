@@ -51,6 +51,12 @@ importers:
       '@dashboard/widget-meal-plan':
         specifier: workspace:*
         version: link:../widgets/meal-plan
+      '@dashboard/widget-notes':
+        specifier: workspace:*
+        version: link:../widgets/notes
+      '@dashboard/widget-packages':
+        specifier: workspace:*
+        version: link:../widgets/packages
       '@dashboard/widget-slideshow':
         specifier: workspace:*
         version: link:../widgets/slideshow
@@ -307,6 +313,28 @@ importers:
         version: 2.1.8(@types/node@22.10.2)(lightningcss@1.32.0)
 
   packages/widgets/notes:
+    dependencies:
+      '@dashboard/core':
+        specifier: workspace:*
+        version: link:../../core
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      zod:
+        specifier: 3.23.8
+        version: 3.23.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.0.2
+        version: 19.0.2
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(lightningcss@1.32.0)
+
+  packages/widgets/packages:
     dependencies:
       '@dashboard/core':
         specifier: workspace:*

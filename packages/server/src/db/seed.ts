@@ -61,6 +61,15 @@ export const seedDefaultScene = (db: Database.Database) => {
       h: 2,
       config: { instanceId: 'notes-1', title: 'Notes' },
     },
+    {
+      instanceId: 'packages-1',
+      widgetId: 'packages',
+      x: 5,
+      y: 10,
+      w: 3,
+      h: 2,
+      config: { instanceId: 'packages-1', title: 'Packages' },
+    },
   ]
   db.prepare(
     `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)
