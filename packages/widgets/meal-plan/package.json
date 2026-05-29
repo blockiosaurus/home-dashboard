@@ -1,0 +1,19 @@
+{
+  "name": "@dashboard/widget-meal-plan",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": { ".": "./dist/index.js" },
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run --passWithNoTests" },
+  "dependencies": {
+    "@dashboard/core": "workspace:*",
+    "date-fns": "4.1.0",
+    "zod": "3.23.8"
+  },
+  "peerDependencies": { "react": "^19.0.0" },
+  "devDependencies": {
+    "@types/react": "19.0.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
