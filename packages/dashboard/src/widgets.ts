@@ -1,2 +1,5 @@
-// Widget loader registrations are added here as widget packages are introduced.
-export {}
+import { registerWidgetLoader } from './widget-loader'
+
+registerWidgetLoader('clock', () =>
+  import('@dashboard/widget-clock').then((m) => m.default),
+)
