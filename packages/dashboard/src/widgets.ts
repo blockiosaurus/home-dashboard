@@ -23,3 +23,7 @@ registerWidgetLoader('chores', () =>
 registerWidgetLoader('meal-plan', () =>
   import('@dashboard/widget-meal-plan').then((m) => m.default),
 )
+
+registerWidgetLoader('notes', () =>
+  import('@dashboard/widget-notes').then((m) => m.default),
+)

@@ -16,6 +16,7 @@
     "@dashboard/widget-chores": "workspace:*",
     "@dashboard/widget-meal-plan": "workspace:*",
     "@dashboard/widget-slideshow": "workspace:*",
+    "@dashboard/widget-notes": "workspace:*",
     "@dashboard/widget-weather": "workspace:*",
     "@tanstack/react-query": "5.62.7",
     "react": "19.0.0",
