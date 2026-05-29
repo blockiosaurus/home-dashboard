@@ -21,5 +21,6 @@ export const useEditorStore = create<EditorState>((set) => ({
   setDraft: (s) => set({ draft: { ...s, dirty: false } }),
   setCells: (cells) =>
     set((state) => (state.draft ? { draft: { ...state.draft, cells, dirty: true } } : state)),
-  markClean: () => set((state) => (state.draft ? { draft: { ...state.draft, dirty: false } } : state)),
+  markClean: () =>
+    set((state) => (state.draft ? { draft: { ...state.draft, dirty: false } } : state)),
 }))

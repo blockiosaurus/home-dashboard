@@ -27,7 +27,10 @@ export const AccountsPanel = () => {
           <p className="text-sm text-[var(--text-dim)]">No Google account connected.</p>
         ) : (
           (data?.accounts ?? []).map((a) => (
-            <div key={a.id} className="flex items-center justify-between rounded-lg border border-[var(--text-dim)]/20 p-3">
+            <div
+              key={a.id}
+              className="flex items-center justify-between rounded-lg border border-[var(--text-dim)]/20 p-3"
+            >
               <span className="text-sm font-semibold">{a.email || a.provider}</span>
               <Button variant="secondary" disabled>
                 Disconnect

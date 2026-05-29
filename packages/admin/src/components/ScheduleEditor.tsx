@@ -49,11 +49,7 @@ export const ScheduleEditor = () => {
         ))}
       </div>
       <div className="mt-4 space-y-3 border-t border-[var(--text-dim)]/20 pt-3">
-        <Input
-          label="Scene id"
-          value={sceneId}
-          onChange={(e) => setSceneId(e.target.value)}
-        />
+        <Input label="Scene id" value={sceneId} onChange={(e) => setSceneId(e.target.value)} />
         <Input
           label="Cron expression"
           value={cronExpr}

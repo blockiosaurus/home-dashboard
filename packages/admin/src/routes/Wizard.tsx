@@ -70,8 +70,8 @@ export const Wizard = () => {
         <Card className="w-full max-w-md">
           <h1 className="text-2xl font-bold">Connect Google</h1>
           <p className="mt-2 text-sm text-[var(--text-dim)]">
-            We use Google Calendar (read + write) and Google Photos (read) so the dashboard
-            can show events and a slideshow.
+            We use Google Calendar (read + write) and Google Photos (read) so the dashboard can show
+            events and a slideshow.
           </p>
           {state.oauthStatus === 'idle' ? (
             <Button className="mt-4 w-full" onClick={() => start.mutate()}>
@@ -96,7 +96,10 @@ export const Wizard = () => {
             </div>
           ) : (
             <p className="mt-4 text-sm text-red-500">
-              OAuth {state.oauthStatus}. <button onClick={() => start.mutate()}>Retry</button>
+              OAuth {state.oauthStatus}.{' '}
+              <button type="button" onClick={() => start.mutate()}>
+                Retry
+              </button>
             </p>
           )}
         </Card>
@@ -120,11 +123,7 @@ export const Wizard = () => {
       />
     )
   if (state.step === 'album')
-    return (
-      <AlbumStep
-        onDone={(albumId) => setState((s) => ({ ...s, albumId, step: 'done' }))}
-      />
-    )
+    return <AlbumStep onDone={(albumId) => setState((s) => ({ ...s, albumId, step: 'done' }))} />
 
   // step === 'done'
   return <DoneStep state={state} onComplete={() => navigate('/editor')} />
@@ -144,16 +143,11 @@ const PeopleStep = ({
     <div className="flex h-full items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <h1 className="text-2xl font-bold">Family members</h1>
-        <p className="mt-1 text-sm text-[var(--text-dim)]">
-          Up to four — leave blank to skip.
-        </p>
+        <p className="mt-1 text-sm text-[var(--text-dim)]">Up to four — leave blank to skip.</p>
         <div className="mt-4 space-y-3">
           {draft.map((p, idx) => (
             <div key={p.id} className="flex items-center gap-3">
-              <span
-                className="inline-block h-8 w-8 rounded-full"
-                style={{ background: p.color }}
-              />
+              <span className="inline-block h-8 w-8 rounded-full" style={{ background: p.color }} />
               <Input
                 value={p.name}
                 placeholder={`Person ${idx + 1}`}
@@ -286,11 +280,7 @@ const AlbumStep = ({ onDone }: { onDone: (id: string | null) => void }) => {
           <Button variant="secondary" className="flex-1" onClick={() => onDone(null)}>
             Skip
           </Button>
-          <Button
-            className="flex-1"
-            disabled={!selected}
-            onClick={() => onDone(selected)}
-          >
+          <Button className="flex-1" disabled={!selected} onClick={() => onDone(selected)}>
             Continue
           </Button>
         </div>

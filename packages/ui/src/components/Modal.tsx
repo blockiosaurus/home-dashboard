@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect } from 'react'
 
 export interface ModalProps {
   open: boolean
@@ -8,19 +8,34 @@ export interface ModalProps {
 }
 
 export const Modal = ({ open, onClose, title, children }: ModalProps) => {
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
   if (!open) return null
   return (
-    <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-      role="dialog"
-    >
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
+      <button
+        type="button"
+        aria-label="Close dialog"
+        className="absolute inset-0 cursor-default"
+        onClick={onClose}
+      />
       <div
-        className="max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-bold">{title}</h2>
+          <h2 id="modal-title" className="text-xl font-bold">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}

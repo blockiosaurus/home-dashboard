@@ -2,7 +2,9 @@ export const api = {
   getScenes: async () => {
     const res = await fetch('/api/scenes')
     if (!res.ok) throw new Error('scenes fetch failed')
-    return res.json() as Promise<{ scenes: Array<{ id: string; name: string; isDefault: boolean; cells: unknown[] }> }>
+    return res.json() as Promise<{
+      scenes: Array<{ id: string; name: string; isDefault: boolean; cells: unknown[] }>
+    }>
   },
   putScene: async (scene: { id: string; name: string; isDefault: boolean; cells: unknown[] }) => {
     const res = await fetch('/api/scenes', {
@@ -17,7 +19,12 @@ export const api = {
     const res = await fetch('/api/widgets')
     if (!res.ok) throw new Error('widgets fetch failed')
     return res.json() as Promise<{
-      widgets: Array<{ id: string; name: string; defaultSize: { w: number; h: number }; minSize: { w: number; h: number } }>
+      widgets: Array<{
+        id: string
+        name: string
+        defaultSize: { w: number; h: number }
+        minSize: { w: number; h: number }
+      }>
     }>
   },
   getSystem: async () => {
@@ -26,7 +33,12 @@ export const api = {
     return res.json() as Promise<{
       firstRunComplete: boolean
       manualScene: string | null
-      weatherDefault: { lat: number; lon: number; unit: 'celsius' | 'fahrenheit'; label?: string } | null
+      weatherDefault: {
+        lat: number
+        lon: number
+        unit: 'celsius' | 'fahrenheit'
+        label?: string
+      } | null
       photosAlbumId: string | null
     }>
   },
@@ -65,7 +77,9 @@ export const api = {
       body: JSON.stringify({ deviceCode }),
     })
     if (!res.ok) throw new Error('oauth poll failed')
-    return res.json() as Promise<{ status: 'pending' | 'ok' | 'denied' | 'expired' | 'unknown' | 'error' }>
+    return res.json() as Promise<{
+      status: 'pending' | 'ok' | 'denied' | 'expired' | 'unknown' | 'error'
+    }>
   },
   getAlbums: async () => {
     const res = await fetch('/api/google/albums')
@@ -79,7 +93,10 @@ export const api = {
       rules: Array<{ id: string; sceneId: string; cronExpr: string; priority: number }>
     }>
   },
-  putScheduleRule: async (id: string, body: { sceneId: string; cronExpr: string; priority: number }) => {
+  putScheduleRule: async (
+    id: string,
+    body: { sceneId: string; cronExpr: string; priority: number },
+  ) => {
     const res = await fetch(`/api/scene-schedule/${id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },

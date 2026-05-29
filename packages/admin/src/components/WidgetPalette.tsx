@@ -1,5 +1,5 @@
-import { Card } from '@dashboard/ui'
 import type { LayoutCell } from '@dashboard/core'
+import { Card } from '@dashboard/ui'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 

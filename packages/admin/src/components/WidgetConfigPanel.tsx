@@ -1,5 +1,5 @@
-import { Button, Card } from '@dashboard/ui'
 import type { LayoutCell } from '@dashboard/core'
+import { Button, Card } from '@dashboard/ui'
 
 export interface WidgetConfigPanelProps {
   cell: LayoutCell | null
@@ -14,9 +14,7 @@ export const WidgetConfigPanel = ({ cell, onChange, onDelete }: WidgetConfigPane
         <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
           Configure
         </h3>
-        <p className="mt-2 text-sm text-[var(--text-dim)]">
-          Select a widget to edit its config.
-        </p>
+        <p className="mt-2 text-sm text-[var(--text-dim)]">Select a widget to edit its config.</p>
       </Card>
     )
   }

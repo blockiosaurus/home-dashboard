@@ -18,9 +18,7 @@ export const SystemPanel = () => {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-dim)]">
-        System
-      </h3>
+      <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-dim)]">System</h3>
       <div className="mt-3 space-y-3">
         <Input
           label="Manual scene override"
@@ -28,10 +26,7 @@ export const SystemPanel = () => {
           onChange={(e) => setManualScene(e.target.value || null)}
           placeholder="(none)"
         />
-        <Button
-          onClick={() => save.mutate({ manualScene })}
-          disabled={save.isPending}
-        >
+        <Button onClick={() => save.mutate({ manualScene })} disabled={save.isPending}>
           Save
         </Button>
       </div>

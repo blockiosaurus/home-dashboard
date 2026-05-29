@@ -1,7 +1,9 @@
-import { parseExpression } from 'cron-parser'
 import type Database from 'better-sqlite3'
-import type { Broker } from '../ws/broker'
+import cronParser from 'cron-parser'
 import { createScheduler } from '../scheduler'
+import type { Broker } from '../ws/broker'
+
+const { parseExpression } = cronParser
 
 export interface ScheduleRule {
   id: string

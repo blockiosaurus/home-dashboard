@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import type { Scene } from '@dashboard/core'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { SceneRenderer } from './SceneRenderer'
 import { useDashboardStore } from './store'
@@ -35,9 +35,7 @@ const Inner = () => {
 
   if (!data) return <p className="p-4">No scenes yet.</p>
   const selected =
-    data.find((s) => s.id === activeSceneId) ??
-    data.find((s) => s.isDefault) ??
-    data[0]
+    data.find((s) => s.id === activeSceneId) ?? data.find((s) => s.isDefault) ?? data[0]
   if (!selected) return <p className="p-4">No scenes yet.</p>
   return <SceneRenderer scene={selected} />
 }
