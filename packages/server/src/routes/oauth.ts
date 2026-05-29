@@ -1,12 +1,8 @@
+import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
-import { randomUUID } from 'node:crypto'
-import {
-  pollDeviceFlow,
-  startDeviceFlow,
-  type DeviceFlowStart,
-} from '../auth/google'
 import { createEncryptor, deriveKey } from '../auth/encryption'
+import { type DeviceFlowStart, pollDeviceFlow, startDeviceFlow } from '../auth/google'
 
 interface PendingFlow extends DeviceFlowStart {
   startedAt: number

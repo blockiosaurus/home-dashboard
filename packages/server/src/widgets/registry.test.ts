@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { createRegistry } from './registry'
 import type { WidgetDefinition } from '@dashboard/core'
+import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { createRegistry } from './registry'
 
 const clock: WidgetDefinition = {
   id: 'clock',

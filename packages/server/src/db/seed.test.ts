@@ -22,7 +22,9 @@ describe('seedDefaultScene', () => {
     )
     expect(rows).toHaveLength(1)
     expect(rows[0]?.name).toBe('Active')
-    expect(JSON.parse(rows[0]!.layout_json)).toEqual([
+    const firstRow = rows[0]
+    if (!firstRow) throw new Error('expected one row')
+    expect(JSON.parse(firstRow.layout_json)).toEqual([
       expect.objectContaining({ widgetId: 'clock' }),
       expect.objectContaining({ widgetId: 'calendar' }),
     ])

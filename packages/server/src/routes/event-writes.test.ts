@@ -6,9 +6,11 @@ describe('event writes', () => {
     const dir = `/tmp/ew-${Date.now()}`
     const app = await buildApp({ dataDir: dir })
     // Seed a calendar so the FK reference works
-    app.db.prepare(
-      'INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible) VALUES (?, ?, ?, ?, 1)',
-    ).run('cal1', 'acc1', 'gcal1', 'Mom')
+    app.db
+      .prepare(
+        'INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible) VALUES (?, ?, ?, ?, 1)',
+      )
+      .run('cal1', 'acc1', 'gcal1', 'Mom')
 
     const body = {
       calendarId: 'cal1',

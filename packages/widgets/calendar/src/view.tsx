@@ -1,11 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import {
-  addDays,
-  endOfWeek,
-  format,
-  isSameDay,
-  startOfWeek,
-} from 'date-fns'
+import { addDays, endOfWeek, format, isSameDay, startOfWeek } from 'date-fns'
 import type { CachedEvent } from './types'
 
 export interface CalendarConfig {
@@ -36,7 +30,8 @@ export const CalendarView = ({ config }: { config: CalendarConfig; data: undefin
       <div className="grid grid-cols-7 gap-2 pb-2 text-xs font-semibold text-[var(--text-dim)]">
         {days.map((d) => (
           <div key={d.toISOString()} className="text-center">
-            {format(d, 'EEE')}<br />
+            {format(d, 'EEE')}
+            <br />
             <span
               className={isSameDay(d, today) ? 'text-white bg-[var(--accent)] rounded-md px-2' : ''}
             >

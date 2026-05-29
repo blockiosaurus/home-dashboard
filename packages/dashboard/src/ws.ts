@@ -1,4 +1,4 @@
-import { ServerMessageSchema, type ServerMessage } from '@dashboard/core'
+import { type ServerMessage, ServerMessageSchema } from '@dashboard/core'
 
 export const connectWs = (onMessage: (m: ServerMessage) => void): (() => void) => {
   let ws: WebSocket | null = null

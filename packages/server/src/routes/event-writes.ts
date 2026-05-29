@@ -1,6 +1,6 @@
+import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
-import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 
 const NewEvent = z.object({

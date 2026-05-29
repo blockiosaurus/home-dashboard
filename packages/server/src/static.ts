@@ -1,8 +1,8 @@
+import { existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import staticPlugin from '@fastify/static'
 import type { FastifyInstance } from 'fastify'
-import { existsSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, join } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
 

@@ -1,5 +1,5 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import type { Scene } from '@dashboard/core'
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { SceneRenderer } from './SceneRenderer'
 import { useDashboardStore } from './store'

@@ -14,7 +14,8 @@ export const registerWidgetLoader = (id: string, loader: Loader) => {
 }
 
 export const loadWidget = async (id: string): Promise<WidgetView | null> => {
-  if (cache.has(id)) return cache.get(id)!
+  const cached = cache.get(id)
+  if (cached) return cached
   const loader = loaders.get(id)
   if (!loader) return null
   const view = await loader()

@@ -21,12 +21,7 @@ describe('applyEventsDiff', () => {
   it('removes events with status=cancelled', () => {
     const cache = new Map()
     applyEventsDiff(cache, 'c1', [sample], Date.now())
-    const res = applyEventsDiff(
-      cache,
-      'c1',
-      [{ ...sample, status: 'cancelled' }],
-      Date.now(),
-    )
+    const res = applyEventsDiff(cache, 'c1', [{ ...sample, status: 'cancelled' }], Date.now())
     expect(res.deletes).toBe(1)
     expect(cache.size).toBe(0)
   })

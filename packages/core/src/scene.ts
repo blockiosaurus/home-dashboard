@@ -7,8 +7,16 @@ export const LayoutCellSchema = z
   .object({
     instanceId: z.string().min(1),
     widgetId: z.string().min(1),
-    x: z.number().int().min(0).max(GRID_COLS - 1),
-    y: z.number().int().min(0).max(GRID_ROWS - 1),
+    x: z
+      .number()
+      .int()
+      .min(0)
+      .max(GRID_COLS - 1),
+    y: z
+      .number()
+      .int()
+      .min(0)
+      .max(GRID_ROWS - 1),
     w: z.number().int().min(1).max(GRID_COLS),
     h: z.number().int().min(1).max(GRID_ROWS),
     config: z.unknown(),

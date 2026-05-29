@@ -1,8 +1,8 @@
+import { readFileSync } from 'node:fs'
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
 import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
-import { readFileSync } from 'node:fs'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
@@ -70,7 +70,9 @@ export const buildApp = async (opts: AppOptions) => {
     broker,
     config: {
       ...(opts.googleClientId !== undefined ? { googleClientId: opts.googleClientId } : {}),
-      ...(opts.googleClientSecret !== undefined ? { googleClientSecret: opts.googleClientSecret } : {}),
+      ...(opts.googleClientSecret !== undefined
+        ? { googleClientSecret: opts.googleClientSecret }
+        : {}),
     },
     machineId,
   })

@@ -1,4 +1,4 @@
-import { applyEventsDiff, type CachedEvent } from './calendar-sync'
+import { type CachedEvent, applyEventsDiff } from './calendar-sync'
 import type { GoogleEvent, ListEventsArgs, ListEventsResult } from './google-client'
 
 type ListFn = (token: string, calendarId: string, args: ListEventsArgs) => Promise<ListEventsResult>
@@ -30,9 +30,7 @@ const collect = async (
   let pageToken: string | undefined
   let nextSyncToken: string | undefined
   for (;;) {
-    const callArgs: ListEventsArgs = pageToken
-      ? { ...initialArgs, pageToken }
-      : { ...initialArgs }
+    const callArgs: ListEventsArgs = pageToken ? { ...initialArgs, pageToken } : { ...initialArgs }
     const res = await list(token, calendarId, callArgs)
     if (res.syncTokenInvalid) return { events: [], invalid: true }
     collected.push(...res.events)

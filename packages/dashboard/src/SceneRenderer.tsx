@@ -2,7 +2,7 @@ import type { LayoutCell, Scene } from '@dashboard/core'
 import { GRID_COLS, GRID_ROWS } from '@dashboard/core'
 import { useEffect, useState } from 'react'
 import { useDashboardStore } from './store'
-import { loadWidget, type WidgetView } from './widget-loader'
+import { type WidgetView, loadWidget } from './widget-loader'
 
 const Cell = ({ cell }: { cell: LayoutCell }) => {
   const [view, setView] = useState<WidgetView | null>(null)

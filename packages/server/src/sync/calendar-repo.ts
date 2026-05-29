@@ -50,8 +50,8 @@ export const setSyncToken = (db: Database.Database, calendarId: string, token: s
 }
 
 export const getSyncToken = (db: Database.Database, calendarId: string): string | null => {
-  const row = db
-    .prepare('SELECT sync_token FROM calendars WHERE id = ?')
-    .get(calendarId) as { sync_token: string | null } | undefined
+  const row = db.prepare('SELECT sync_token FROM calendars WHERE id = ?').get(calendarId) as
+    | { sync_token: string | null }
+    | undefined
   return row?.sync_token ?? null
 }

@@ -1,6 +1,6 @@
+import type { WidgetDefinition } from '@dashboard/core'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import type { WidgetDefinition } from '@dashboard/core'
 import { runWidgetBackends } from './cron-runner'
 
 beforeEach(() => vi.useFakeTimers())

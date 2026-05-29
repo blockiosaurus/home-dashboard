@@ -1,13 +1,13 @@
 import type Database from 'better-sqlite3'
-import { createScheduler } from '../scheduler'
-import { createTokenCache } from '../auth/token-cache'
-import { refreshAccessToken } from '../auth/google'
 import { createEncryptor, deriveKey } from '../auth/encryption'
-import { listEvents } from './google-client'
-import type { CachedEvent } from './calendar-sync'
-import { upsertEvents, setSyncToken, getSyncToken } from './calendar-repo'
-import { syncCalendarOnce } from './runner'
+import { refreshAccessToken } from '../auth/google'
+import { createTokenCache } from '../auth/token-cache'
+import { createScheduler } from '../scheduler'
 import type { Broker } from '../ws/broker'
+import { getSyncToken, setSyncToken, upsertEvents } from './calendar-repo'
+import type { CachedEvent } from './calendar-sync'
+import { listEvents } from './google-client'
+import { syncCalendarOnce } from './runner'
 
 export interface SyncServiceOptions {
   db: Database.Database
@@ -37,9 +37,7 @@ export const startSyncService = async (opts: SyncServiceOptions) => {
   const key = await deriveKey(opts.machineId, salt)
   const enc = await createEncryptor(key)
 
-  const tokenCache = createTokenCache((rt) =>
-    refreshAccessToken(clientId, clientSecret, rt),
-  )
+  const tokenCache = createTokenCache((rt) => refreshAccessToken(clientId, clientSecret, rt))
 
   const sched = createScheduler()
   sched.every(60_000, async () => {
@@ -50,7 +48,9 @@ export const startSyncService = async (opts: SyncServiceOptions) => {
       const refreshToken = enc.decrypt(acc.refresh_token_encrypted)
       const accessToken = await tokenCache.get(refreshToken)
       const cals = opts.db
-        .prepare('SELECT id, google_calendar_id FROM calendars WHERE account_id = ? AND visible = 1')
+        .prepare(
+          'SELECT id, google_calendar_id FROM calendars WHERE account_id = ? AND visible = 1',
+        )
         .all(acc.id) as Array<{ id: string; google_calendar_id: string }>
       for (const c of cals) {
         const result = await syncCalendarOnce({
