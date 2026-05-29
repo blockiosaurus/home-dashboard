@@ -36,6 +36,9 @@ importers:
       '@dashboard/ui':
         specifier: workspace:*
         version: link:../ui
+      '@dashboard/widget-agenda':
+        specifier: workspace:*
+        version: link:../widgets/agenda
       '@dashboard/widget-calendar':
         specifier: workspace:*
         version: link:../widgets/calendar
@@ -166,6 +169,34 @@ importers:
         specifier: 5.7.2
         version: 5.7.2
 
+  packages/widgets/agenda:
+    dependencies:
+      '@dashboard/core':
+        specifier: workspace:*
+        version: link:../../core
+      date-fns:
+        specifier: 4.1.0
+        version: 4.1.0
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      zod:
+        specifier: 3.23.8
+        version: 3.23.8
+    devDependencies:
+      '@tanstack/react-query':
+        specifier: 5.62.7
+        version: 5.62.7(react@19.0.0)
+      '@types/react':
+        specifier: 19.0.2
+        version: 19.0.2
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(lightningcss@1.32.0)
+
   packages/widgets/calendar:
     dependencies:
       '@dashboard/core':
@@ -212,6 +243,28 @@ importers:
       typescript:
         specifier: 5.7.2
         version: 5.7.2
+
+  packages/widgets/slideshow:
+    dependencies:
+      '@dashboard/core':
+        specifier: workspace:*
+        version: link:../../core
+      react:
+        specifier: ^19.0.0
+        version: 19.0.0
+      zod:
+        specifier: 3.23.8
+        version: 3.23.8
+    devDependencies:
+      '@types/react':
+        specifier: 19.0.2
+        version: 19.0.2
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
+      vitest:
+        specifier: 2.1.8
+        version: 2.1.8(@types/node@22.10.2)(lightningcss@1.32.0)
 
   packages/widgets/weather:
     dependencies:
