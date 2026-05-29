@@ -1,7 +1,15 @@
 import type Database from 'better-sqlite3'
 
 const sleepCells = [
-  { instanceId: 'clock-sleep', widgetId: 'clock', x: 0, y: 0, w: 8, h: 2, config: { format: '12h' } },
+  {
+    instanceId: 'clock-sleep',
+    widgetId: 'clock',
+    x: 0,
+    y: 0,
+    w: 8,
+    h: 2,
+    config: { format: '12h' },
+  },
   {
     instanceId: 'agenda-sleep',
     widgetId: 'agenda',
@@ -37,7 +45,15 @@ export const seedDefaultScene = (db: Database.Database) => {
       h: 2,
       config: { lat: 40.7128, lon: -74.006, unit: 'fahrenheit', label: 'NYC' },
     },
-    { instanceId: 'agenda-1', widgetId: 'agenda', x: 0, y: 1, w: 5, h: 2, config: { daysAhead: 1 } },
+    {
+      instanceId: 'agenda-1',
+      widgetId: 'agenda',
+      x: 0,
+      y: 1,
+      w: 5,
+      h: 2,
+      config: { daysAhead: 1 },
+    },
     {
       instanceId: 'cal-1',
       widgetId: 'calendar',
@@ -101,7 +117,7 @@ export const seedDefaultScene = (db: Database.Database) => {
   insert.run('sleep', 'Sleep', JSON.stringify(sleepCells), 0, now, now)
 
   const rule = db.prepare(
-    `INSERT INTO scene_schedule (id, scene_id, cron_expr, priority) VALUES (?, ?, ?, ?)`,
+    'INSERT INTO scene_schedule (id, scene_id, cron_expr, priority) VALUES (?, ?, ?, ?)',
   )
   rule.run('sleep-22', 'sleep', '0 22 * * *', 10)
   rule.run('wake-07', 'default', '0 7 * * *', 10)

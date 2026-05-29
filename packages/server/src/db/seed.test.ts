@@ -49,7 +49,7 @@ describe('seedDefaultScene', () => {
   it('also seeds a Sleep scene with a schedule rule', () => {
     const { db, close } = openDatabase(dir)
     seedDefaultScene(db.raw)
-    const sceneNames = (db.all<{ name: string }>('SELECT name FROM scenes')).map((r) => r.name)
+    const sceneNames = db.all<{ name: string }>('SELECT name FROM scenes').map((r) => r.name)
     expect(sceneNames).toEqual(expect.arrayContaining(['Active', 'Sleep']))
     const rules = db.all<{ scene_id: string; cron_expr: string }>(
       'SELECT scene_id, cron_expr FROM scene_schedule',
