@@ -8,6 +8,7 @@ import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
+import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerStatic } from './static'
 import { startSyncService } from './sync/service'
@@ -57,6 +58,12 @@ export const buildApp = async (opts: AppOptions) => {
       return 'dev-machine'
     }
   })()
+
+  registerOauthRoutes(app, db.raw, {
+    ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),
+    ...(opts.googleClientSecret !== undefined ? { clientSecret: opts.googleClientSecret } : {}),
+    machineId,
+  })
 
   const sync = await startSyncService({
     db: db.raw,
