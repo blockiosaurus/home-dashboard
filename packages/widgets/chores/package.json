@@ -1,0 +1,22 @@
+{
+  "name": "@dashboard/widget-chores",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "exports": { ".": "./dist/index.js" },
+  "scripts": { "build": "tsc -p tsconfig.json", "test": "vitest run --passWithNoTests" },
+  "dependencies": {
+    "@dashboard/core": "workspace:*",
+    "zod": "3.23.8"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.62.7",
+    "@types/react": "19.0.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
