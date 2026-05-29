@@ -2,6 +2,7 @@ import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
 import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
+import { readFileSync } from 'node:fs'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
@@ -9,10 +10,13 @@ import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerStatic } from './static'
+import { startSyncService } from './sync/service'
 import { createBroker } from './ws/broker'
 
 export interface AppOptions {
   dataDir: string
+  googleClientId?: string
+  googleClientSecret?: string
 }
 
 export const buildApp = async (opts: AppOptions) => {
@@ -45,6 +49,25 @@ export const buildApp = async (opts: AppOptions) => {
   registerAccountsRoutes(app, db.raw)
 
   await registerStatic(app)
+
+  const machineId = (() => {
+    try {
+      return readFileSync('/etc/machine-id', 'utf8').trim()
+    } catch {
+      return 'dev-machine'
+    }
+  })()
+
+  const sync = await startSyncService({
+    db: db.raw,
+    broker,
+    config: {
+      ...(opts.googleClientId !== undefined ? { googleClientId: opts.googleClientId } : {}),
+      ...(opts.googleClientSecret !== undefined ? { googleClientSecret: opts.googleClientSecret } : {}),
+    },
+    machineId,
+  })
+  app.addHook('onClose', async () => sync.stop())
 
   app.addHook('onClose', async () => closeDb())
   return app
