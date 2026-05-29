@@ -1,6 +1,11 @@
+import { AccountsPanel } from '../components/AccountsPanel'
+import { ScheduleEditor } from '../components/ScheduleEditor'
+import { SystemPanel } from '../components/SystemPanel'
+
 export const Settings = () => (
-  <div className="p-6">
-    <h1 className="text-2xl font-bold">Settings</h1>
-    <p className="text-sm text-[var(--text-dim)]">Coming up in Task 16.</p>
+  <div className="grid h-full grid-cols-1 gap-4 overflow-y-auto p-6 lg:grid-cols-2">
+    <AccountsPanel />
+    <SystemPanel />
+    <ScheduleEditor />
   </div>
 )
