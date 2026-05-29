@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import staticPlugin from '@fastify/static'
@@ -17,4 +17,24 @@ export const registerStatic = async (app: FastifyInstance) => {
   if (dashboard) {
     await app.register(staticPlugin, { root: dashboard, prefix: '/', decorateReply: false })
   }
+  const admin = resolveDistRoot('admin')
+  if (admin) {
+    await app.register(staticPlugin, {
+      root: admin,
+      prefix: '/admin/',
+      decorateReply: false,
+    })
+    app.get('/admin', async (_, reply) => reply.redirect('/admin/'))
+  }
+
+  app.setNotFoundHandler(async (req, reply) => {
+    if (req.url.startsWith('/admin/')) {
+      if (admin) {
+        const html = readFileSync(join(admin, 'index.html'), 'utf8')
+        return reply.type('text/html').send(html)
+      }
+    }
+    reply.code(404)
+    return { error: 'not found' }
+  })
 }
