@@ -12,6 +12,7 @@ import { refreshAccessToken } from './auth/google'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
+import { registerAccountsWriteRoutes } from './routes/accounts-write'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerGoogleAlbumsRoute } from './routes/google-albums'
@@ -115,6 +116,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerEventWritesRoutes(app, db.raw)
   registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
+  registerAccountsWriteRoutes(app, db.raw, { machineId })
   registerWidgetsListRoute(app)
   registerPeopleRoutes(app, db.raw)
   registerSystemRoutes(app, db.raw)
