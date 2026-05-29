@@ -1,8 +1,10 @@
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
 import websocket from '@fastify/websocket'
+import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
 import { openDatabase } from './db'
 import { registerAccountsRoutes } from './routes/accounts'
+import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerScenesRoutes } from './routes/scenes'
 import { createBroker } from './ws/broker'
@@ -33,8 +35,10 @@ export const buildApp = async (opts: AppOptions) => {
   })
 
   app.decorate('broker', broker)
+  app.decorate('db', db.raw)
   registerScenesRoutes(app, db.raw)
   registerEventsRoutes(app, db.raw)
+  registerEventWritesRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
 
   app.addHook('onClose', async () => closeDb())
@@ -44,5 +48,6 @@ export const buildApp = async (opts: AppOptions) => {
 declare module 'fastify' {
   interface FastifyInstance {
     broker: ReturnType<typeof createBroker>
+    db: Database.Database
   }
 }
