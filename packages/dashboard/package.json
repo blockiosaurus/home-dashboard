@@ -12,6 +12,7 @@
     "@dashboard/ui": "workspace:*",
     "@dashboard/widget-calendar": "workspace:*",
     "@dashboard/widget-clock": "workspace:*",
+    "@dashboard/widget-weather": "workspace:*",
     "@tanstack/react-query": "5.62.7",
     "react": "19.0.0",
     "react-dom": "19.0.0",

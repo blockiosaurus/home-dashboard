@@ -7,12 +7,21 @@ export const seedDefaultScene = (db: Database.Database) => {
   const cells = [
     { instanceId: 'clock-1', widgetId: 'clock', x: 0, y: 0, w: 8, h: 1, config: {} },
     {
+      instanceId: 'weather-1',
+      widgetId: 'weather',
+      x: 5,
+      y: 1,
+      w: 3,
+      h: 2,
+      config: { lat: 40.7128, lon: -74.006, unit: 'fahrenheit', label: 'NYC' },
+    },
+    {
       instanceId: 'cal-1',
       widgetId: 'calendar',
       x: 0,
-      y: 1,
+      y: 3,
       w: 8,
-      h: 6,
+      h: 4,
       config: { view: 'week' },
     },
   ]

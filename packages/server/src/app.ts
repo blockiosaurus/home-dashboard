@@ -3,6 +3,8 @@ import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
 import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
+import weatherDef from '@dashboard/widget-weather'
+import { createWeatherBackend } from '@dashboard/widget-weather/backend'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
@@ -13,9 +15,11 @@ import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerStatic } from './static'
 import { startSyncService } from './sync/service'
+import { fetchWeather } from './sync/weather-client'
 import { createBroker } from './ws/broker'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
+import { instancesFromScene } from './widgets/instances-from-scene'
 
 export interface AppOptions {
   dataDir: string
@@ -46,7 +50,16 @@ export const buildApp = async (opts: AppOptions) => {
   })
 
   const widgetRegistry = createRegistry()
-  const widgetInstances: { widgetId: string; instanceId: string; config: unknown }[] = []
+  widgetRegistry.register({ ...weatherDef, backend: createWeatherBackend(fetchWeather) })
+
+  const widgetInstances = (() => {
+    const scene = db.raw
+      .prepare('SELECT layout_json FROM scenes WHERE is_default = 1')
+      .get() as { layout_json: string } | undefined
+    if (!scene) return []
+    return instancesFromScene(JSON.parse(scene.layout_json))
+  })()
+
   const stopWidgets = startWidgetRuntime({
     broker,
     widgets: widgetRegistry.list(),
