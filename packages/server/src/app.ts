@@ -14,6 +14,8 @@ import { registerScenesRoutes } from './routes/scenes'
 import { registerStatic } from './static'
 import { startSyncService } from './sync/service'
 import { createBroker } from './ws/broker'
+import { createRegistry } from './widgets/registry'
+import { startWidgetRuntime } from './widgets/runtime'
 
 export interface AppOptions {
   dataDir: string
@@ -42,6 +44,16 @@ export const buildApp = async (opts: AppOptions) => {
     })
     socket.on('close', unsub)
   })
+
+  const widgetRegistry = createRegistry()
+  const widgetInstances: { widgetId: string; instanceId: string; config: unknown }[] = []
+  const stopWidgets = startWidgetRuntime({
+    broker,
+    widgets: widgetRegistry.list(),
+    instances: widgetInstances,
+  })
+  app.addHook('onClose', async () => stopWidgets())
+  app.decorate('widgetRegistry', widgetRegistry)
 
   app.decorate('broker', broker)
   app.decorate('db', db.raw)
@@ -88,5 +100,6 @@ declare module 'fastify' {
   interface FastifyInstance {
     broker: ReturnType<typeof createBroker>
     db: Database.Database
+    widgetRegistry: ReturnType<typeof createRegistry>
   }
 }
