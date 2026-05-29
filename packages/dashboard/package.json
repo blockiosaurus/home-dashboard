@@ -10,6 +10,7 @@
   "dependencies": {
     "@dashboard/core": "workspace:*",
     "@dashboard/ui": "workspace:*",
+    "@dashboard/widget-agenda": "workspace:*",
     "@dashboard/widget-calendar": "workspace:*",
     "@dashboard/widget-clock": "workspace:*",
     "@dashboard/widget-weather": "workspace:*",

@@ -15,6 +15,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       h: 2,
       config: { lat: 40.7128, lon: -74.006, unit: 'fahrenheit', label: 'NYC' },
     },
+    { instanceId: 'agenda-1', widgetId: 'agenda', x: 0, y: 1, w: 5, h: 2, config: { daysAhead: 1 } },
     {
       instanceId: 'cal-1',
       widgetId: 'calendar',

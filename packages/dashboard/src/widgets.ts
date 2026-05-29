@@ -7,3 +7,7 @@ registerWidgetLoader('calendar', () => import('@dashboard/widget-calendar').then
 registerWidgetLoader('weather', () =>
   import('@dashboard/widget-weather').then((m) => m.default),
 )
+
+registerWidgetLoader('agenda', () =>
+  import('@dashboard/widget-agenda').then((m) => m.default),
+)
