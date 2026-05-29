@@ -7,6 +7,7 @@ import { registerAccountsRoutes } from './routes/accounts'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerScenesRoutes } from './routes/scenes'
+import { registerStatic } from './static'
 import { createBroker } from './ws/broker'
 
 export interface AppOptions {
@@ -40,6 +41,8 @@ export const buildApp = async (opts: AppOptions) => {
   registerEventsRoutes(app, db.raw)
   registerEventWritesRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
+
+  await registerStatic(app)
 
   app.addHook('onClose', async () => closeDb())
   return app
