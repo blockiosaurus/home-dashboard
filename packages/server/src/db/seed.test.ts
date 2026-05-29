@@ -24,6 +24,7 @@ describe('seedDefaultScene', () => {
     expect(rows[0]?.name).toBe('Active')
     expect(JSON.parse(rows[0]!.layout_json)).toEqual([
       expect.objectContaining({ widgetId: 'clock' }),
+      expect.objectContaining({ widgetId: 'calendar' }),
     ])
     close()
   })

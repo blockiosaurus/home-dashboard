@@ -10,6 +10,7 @@
   "dependencies": {
     "@dashboard/core": "workspace:*",
     "@dashboard/ui": "workspace:*",
+    "@dashboard/widget-calendar": "workspace:*",
     "@dashboard/widget-clock": "workspace:*",
     "@tanstack/react-query": "5.62.7",
     "react": "19.0.0",
