@@ -15,6 +15,7 @@ import { registerAccountsRoutes } from './routes/accounts'
 import { registerPeopleRoutes } from './routes/people'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
+import { registerGoogleAlbumsRoute } from './routes/google-albums'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerWidgetStateRoutes } from './routes/widget-state'
@@ -80,6 +81,8 @@ export const buildApp = async (opts: AppOptions) => {
             ),
         })
       : async () => null
+
+  registerGoogleAlbumsRoute(app, { getAccessToken })
 
   widgetRegistry.register({
     ...slideshowDef,
