@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import staticPlugin from '@fastify/static'
 import type { FastifyInstance } from 'fastify'
@@ -12,7 +12,12 @@ const resolveDistRoot = (pkg: 'dashboard' | 'admin'): string | null => {
   return existsSync(candidate) ? candidate : null
 }
 
-export const registerStatic = async (app: FastifyInstance) => {
+export interface StaticOptions {
+  /** Absolute or process-cwd-relative path to a folder of family photos. */
+  localPhotosDir?: string
+}
+
+export const registerStatic = async (app: FastifyInstance, opts: StaticOptions = {}) => {
   const dashboard = resolveDistRoot('dashboard')
   if (dashboard) {
     await app.register(staticPlugin, { root: dashboard, prefix: '/', decorateReply: false })
@@ -25,6 +30,23 @@ export const registerStatic = async (app: FastifyInstance) => {
       decorateReply: false,
     })
     app.get('/admin', async (_, reply) => reply.redirect('/admin/'))
+  }
+
+  if (opts.localPhotosDir) {
+    const photosRoot = isAbsolute(opts.localPhotosDir)
+      ? opts.localPhotosDir
+      : resolve(process.cwd(), opts.localPhotosDir)
+    // Create the dir so the static plugin doesn't refuse to load when it's
+    // missing. Users drop photos into this folder.
+    mkdirSync(photosRoot, { recursive: true })
+    await app.register(staticPlugin, {
+      root: photosRoot,
+      prefix: '/photos/',
+      decorateReply: false,
+      // Long cache: families add photos slowly. Cache busts naturally when
+      // filenames change.
+      maxAge: 86_400_000,
+    })
   }
 
   app.setNotFoundHandler(async (req, reply) => {

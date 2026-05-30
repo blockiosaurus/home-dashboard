@@ -18,6 +18,7 @@ import { registerEventsRoutes } from './routes/events'
 import { registerGoogleAlbumsRoute } from './routes/google-albums'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerPeopleRoutes } from './routes/people'
+import { registerPhotosRoutes } from './routes/photos'
 import { registerSceneScheduleRoutes } from './routes/scene-schedule'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerSystemRoutes } from './routes/system'
@@ -25,6 +26,7 @@ import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
 import { listAlbumMedia } from './sync/google-photos'
+import { listLocalPhotos } from './sync/local-photos'
 import { startSceneScheduler } from './sync/scene-scheduler'
 import { startSyncService } from './sync/service'
 import { fetchWeather } from './sync/weather-client'
@@ -35,6 +37,7 @@ import { createBroker } from './ws/broker'
 
 export interface AppOptions {
   dataDir: string
+  localPhotosDir?: string
   googleClientId?: string
   googleClientSecret?: string
 }
@@ -99,9 +102,13 @@ export const buildApp = async (opts: AppOptions) => {
 
   registerGoogleAlbumsRoute(app, { getAccessToken })
 
+  const localPhotosDir = opts.localPhotosDir ?? './data/photos'
   widgetRegistry.register({
     ...slideshowDef,
-    backend: createSlideshowBackend(listAlbumMedia, getAccessToken),
+    backend: createSlideshowBackend({
+      googlePhotos: { list: listAlbumMedia, getAccessToken },
+      local: { list: () => listLocalPhotos(localPhotosDir) },
+    }),
   })
 
   const widgetInstances = (() => {
@@ -133,8 +140,9 @@ export const buildApp = async (opts: AppOptions) => {
   registerPeopleRoutes(app, db.raw)
   registerSystemRoutes(app, db.raw)
   registerSceneScheduleRoutes(app, db.raw)
+  registerPhotosRoutes(app, { localPhotosDir })
 
-  await registerStatic(app)
+  await registerStatic(app, { localPhotosDir })
 
   registerOauthRoutes(app, db.raw, {
     ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),

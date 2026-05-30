@@ -16,8 +16,11 @@ console.log(
     `(client_id=${hasGoogleId ? 'set' : 'empty'}, client_secret=${hasGoogleSecret ? 'set' : 'empty'})`,
 )
 
+console.log(`local photos dir: ${config.localPhotosDir}`)
+
 const app = await buildApp({
   dataDir: config.dataDir,
+  localPhotosDir: config.localPhotosDir,
   ...(config.googleClientId !== undefined ? { googleClientId: config.googleClientId } : {}),
   ...(config.googleClientSecret !== undefined
     ? { googleClientSecret: config.googleClientSecret }

@@ -2,7 +2,8 @@ import type { WidgetBackend, WidgetBackendContext } from '@dashboard/core'
 import { z } from 'zod'
 
 const Config = z.object({
-  albumId: z.string().min(1),
+  source: z.enum(['local', 'google-photos']).default('local'),
+  albumId: z.string().optional(),
 })
 
 export type ListAlbumMedia = (
@@ -10,19 +11,41 @@ export type ListAlbumMedia = (
   albumId: string,
 ) => Promise<Array<{ baseUrl: string }>>
 
-export const createSlideshowBackend = (
-  list: ListAlbumMedia,
-  getAccessToken: () => Promise<string | null>,
-): WidgetBackend => ({
+export type ListLocalPhotos = () => Promise<string[]>
+
+export interface SlideshowBackendDeps {
+  googlePhotos: {
+    list: ListAlbumMedia
+    getAccessToken: () => Promise<string | null>
+  }
+  local: {
+    list: ListLocalPhotos
+  }
+}
+
+export const createSlideshowBackend = (deps: SlideshowBackendDeps): WidgetBackend => ({
   intervalMs: 60 * 60_000,
   run: async (ctx: WidgetBackendContext) => {
     const cfg = Config.parse(ctx.config)
-    const token = await getAccessToken()
-    if (!token) {
-      ctx.publish({ baseUrls: [], fetchedAt: ctx.now().getTime() })
+    const fetchedAt = ctx.now().getTime()
+
+    if (cfg.source === 'local') {
+      const urls = await deps.local.list()
+      ctx.publish({ baseUrls: urls, fetchedAt })
       return
     }
-    const media = await list(token, cfg.albumId)
-    ctx.publish({ baseUrls: media.map((m) => m.baseUrl), fetchedAt: ctx.now().getTime() })
+
+    // google-photos source: requires both an albumId and a working token
+    if (!cfg.albumId) {
+      ctx.publish({ baseUrls: [], fetchedAt })
+      return
+    }
+    const token = await deps.googlePhotos.getAccessToken()
+    if (!token) {
+      ctx.publish({ baseUrls: [], fetchedAt })
+      return
+    }
+    const media = await deps.googlePhotos.list(token, cfg.albumId)
+    ctx.publish({ baseUrls: media.map((m) => m.baseUrl), fetchedAt })
   },
 })

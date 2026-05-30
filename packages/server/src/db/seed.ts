@@ -26,7 +26,7 @@ const sleepCells = [
     y: 5,
     w: 8,
     h: 7,
-    config: { albumId: 'placeholder' },
+    config: { source: 'local' },
   },
 ]
 
@@ -70,7 +70,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       y: 7,
       w: 3,
       h: 5,
-      config: { albumId: 'placeholder' },
+      config: { source: 'local' },
     },
     {
       instanceId: 'chores-1',
