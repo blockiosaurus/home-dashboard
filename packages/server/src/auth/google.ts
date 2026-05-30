@@ -1,12 +1,12 @@
 import { fetch } from 'undici'
 
-// Calendar gives us two-way event sync. photosambient is the purpose-built
-// scope for ambient/photo-frame devices that survived the 2025 Library API
-// changes — users pick photo sources in the Google Photos app via a QR
-// code, and we fetch curated media via photosambient.googleapis.com.
+// Calendar gives us two-way event sync. photosambient.mediaitems is the
+// purpose-built scope for ambient/photo-frame devices that survived the 2025
+// Library API changes — users pick photo sources in the Google Photos app
+// via a QR code, and we fetch curated media via photosambient.googleapis.com.
 const SCOPES = [
   'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/photosambient',
+  'https://www.googleapis.com/auth/photosambient.mediaitems',
 ].join(' ')
 
 export interface DeviceFlowStart {
