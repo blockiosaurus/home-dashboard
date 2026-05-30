@@ -1,6 +1,21 @@
 import { fetch } from 'undici'
+import type { Response } from 'undici'
 
 const API = 'https://www.googleapis.com/calendar/v3'
+
+const failWithBody = async (label: string, res: Response): Promise<never> => {
+  // Google returns JSON like { "error": { "code": 403, "message": "...", "status": "..." } }
+  // Surface the message so callers see something actionable, not just the status code.
+  const body = await res.text().catch(() => '')
+  let detail = body
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string } }
+    if (j.error?.message) detail = j.error.message
+  } catch {
+    // not JSON; fall through with raw body
+  }
+  throw new Error(`${label} failed: ${res.status} ${detail}`.trim())
+}
 
 export interface CalendarSummary {
   id: string
@@ -11,7 +26,7 @@ export const listCalendars = async (accessToken: string): Promise<CalendarSummar
   const res = await fetch(`${API}/users/me/calendarList?fields=items(id,summary)`, {
     headers: { authorization: `Bearer ${accessToken}` },
   })
-  if (!res.ok) throw new Error(`listCalendars failed: ${res.status}`)
+  if (!res.ok) await failWithBody('listCalendars', res)
   const j = (await res.json()) as { items?: CalendarSummary[] }
   return j.items ?? []
 }
@@ -60,7 +75,7 @@ export const listEvents = async (
   const url = `${API}/calendars/${encodeURIComponent(calendarId)}/events?${params}`
   const res = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } })
   if (res.status === 410) return { events: [], syncTokenInvalid: true }
-  if (!res.ok) throw new Error(`listEvents failed: ${res.status}`)
+  if (!res.ok) await failWithBody('listEvents', res)
   const j = (await res.json()) as {
     items?: GoogleEvent[]
     nextSyncToken?: string
@@ -91,7 +106,7 @@ export const insertEvent = async (
     headers: { authorization: `Bearer ${accessToken}`, 'content-type': 'application/json' },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`insertEvent failed: ${res.status}`)
+  if (!res.ok) await failWithBody('insertEvent', res)
   return (await res.json()) as GoogleEvent
 }
 
@@ -115,7 +130,7 @@ export const updateEvent = async (
     },
   )
   if (res.status === 412 || res.status === 409) return 'conflict'
-  if (!res.ok) throw new Error(`updateEvent failed: ${res.status}`)
+  if (!res.ok) await failWithBody('updateEvent', res)
   return (await res.json()) as GoogleEvent
 }
 
@@ -132,6 +147,6 @@ export const deleteEvent = async (
     },
   )
   if (res.status !== 204 && res.status !== 410) {
-    throw new Error(`deleteEvent failed: ${res.status}`)
+    await failWithBody('deleteEvent', res)
   }
 }
