@@ -48,9 +48,20 @@ export const buildApp = async (opts: AppOptions) => {
   await app.register(websocket)
 
   app.get('/api/health', async () => ({ status: 'ok' }))
+  // Defer-binding the runtime handle so the WS route can replay the cache to
+  // newly-connected clients. Populated below after startWidgetRuntime.
+  let widgetCache: { entries: () => Iterable<[string, unknown]> } | null = null
+
   app.get('/ws', { websocket: true }, (socket) => {
     const send = (m: ServerMessage) => socket.send(JSON.stringify(m))
     const unsub = broker.subscribe(send)
+    // Replay last-known widget data so a fresh kiosk doesn't sit at "Loading…"
+    // until the next backend tick (which can be up to 15 minutes for weather).
+    if (widgetCache) {
+      for (const [instanceId, payload] of widgetCache.entries()) {
+        send({ type: 'widget:data', instanceId, payload })
+      }
+    }
     socket.on('message', (raw: Buffer) => {
       try {
         ClientMessageSchema.parse(JSON.parse(raw.toString()))
@@ -101,12 +112,13 @@ export const buildApp = async (opts: AppOptions) => {
     return instancesFromScene(JSON.parse(scene.layout_json))
   })()
 
-  const stopWidgets = startWidgetRuntime({
+  const widgetRuntime = startWidgetRuntime({
     broker,
     widgets: widgetRegistry.list(),
     instances: widgetInstances,
   })
-  app.addHook('onClose', async () => stopWidgets())
+  widgetCache = widgetRuntime.cache
+  app.addHook('onClose', async () => widgetRuntime.stop())
   app.decorate('widgetRegistry', widgetRegistry)
 
   app.decorate('broker', broker)

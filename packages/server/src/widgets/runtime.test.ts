@@ -27,14 +27,39 @@ describe('startWidgetRuntime', () => {
       },
     }
 
-    const stop = startWidgetRuntime({
+    const handle = startWidgetRuntime({
       broker,
       widgets: [widget],
       instances: [{ widgetId: 'ticker', instanceId: 'i1', config: {} }],
     })
     await vi.advanceTimersByTimeAsync(2500)
-    stop()
+    handle.stop()
     expect(seen.length).toBeGreaterThanOrEqual(2)
     expect(seen[0]?.instanceId).toBe('i1')
+    expect(handle.cache.get('i1')).toEqual(expect.objectContaining({ at: expect.any(Number) }))
+  })
+
+  it('replays cache entries to new subscribers via cache.entries()', async () => {
+    const broker = createBroker()
+    const widget: WidgetDefinition = {
+      id: 'ticker',
+      name: 'Ticker',
+      defaultSize: { w: 1, h: 1 },
+      minSize: { w: 1, h: 1 },
+      configSchema: z.object({}),
+      backend: {
+        intervalMs: 1000,
+        run: async (ctx) => ctx.publish({ tick: 1 }),
+      },
+    }
+    const handle = startWidgetRuntime({
+      broker,
+      widgets: [widget],
+      instances: [{ widgetId: 'ticker', instanceId: 'i1', config: {} }],
+    })
+    await vi.advanceTimersByTimeAsync(50)
+    const entries = [...handle.cache.entries()]
+    handle.stop()
+    expect(entries).toEqual([['i1', { tick: 1 }]])
   })
 })
