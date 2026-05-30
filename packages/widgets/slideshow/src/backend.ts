@@ -2,7 +2,7 @@ import type { WidgetBackend, WidgetBackendContext } from '@dashboard/core'
 import { z } from 'zod'
 
 const Config = z.object({
-  source: z.enum(['local', 'google-photos']).default('local'),
+  source: z.enum(['local', 'google-photos', 'ambient']).default('local'),
   albumId: z.string().optional(),
 })
 
@@ -13,6 +13,8 @@ export type ListAlbumMedia = (
 
 export type ListLocalPhotos = () => Promise<string[]>
 
+export type ListAmbientMedia = () => Promise<Array<{ baseUrl: string }>>
+
 export interface SlideshowBackendDeps {
   googlePhotos: {
     list: ListAlbumMedia
@@ -20,6 +22,9 @@ export interface SlideshowBackendDeps {
   }
   local: {
     list: ListLocalPhotos
+  }
+  ambient: {
+    list: ListAmbientMedia
   }
 }
 
@@ -32,6 +37,12 @@ export const createSlideshowBackend = (deps: SlideshowBackendDeps): WidgetBacken
     if (cfg.source === 'local') {
       const urls = await deps.local.list()
       ctx.publish({ baseUrls: urls, fetchedAt })
+      return
+    }
+
+    if (cfg.source === 'ambient') {
+      const media = await deps.ambient.list()
+      ctx.publish({ baseUrls: media.map((m) => m.baseUrl), fetchedAt })
       return
     }
 

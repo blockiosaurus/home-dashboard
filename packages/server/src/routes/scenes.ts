@@ -1,4 +1,4 @@
-import { SceneSchema } from '@dashboard/core'
+import { type Scene, SceneSchema } from '@dashboard/core'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
@@ -19,7 +19,7 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
   })
 
   app.post('/api/scenes', async (req, reply) => {
-    let scene
+    let scene: Scene
     try {
       scene = SceneSchema.parse(req.body)
     } catch (err) {

@@ -19,12 +19,14 @@ import { registerGoogleAlbumsRoute } from './routes/google-albums'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerPeopleRoutes } from './routes/people'
 import { registerPhotosRoutes } from './routes/photos'
+import { registerPhotosAmbientRoutes } from './routes/photos-ambient'
 import { registerSceneScheduleRoutes } from './routes/scene-schedule'
 import { registerScenesRoutes } from './routes/scenes'
 import { registerSystemRoutes } from './routes/system'
 import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
+import { listAmbientMediaItems } from './sync/google-ambient'
 import { listAlbumMedia } from './sync/google-photos'
 import { listLocalPhotos } from './sync/local-photos'
 import { startSceneScheduler } from './sync/scene-scheduler'
@@ -103,11 +105,28 @@ export const buildApp = async (opts: AppOptions) => {
   registerGoogleAlbumsRoute(app, { getAccessToken })
 
   const localPhotosDir = opts.localPhotosDir ?? './data/photos'
+  const listAmbientForFirstAccount = async () => {
+    const row = db.raw
+      .prepare(
+        'SELECT ambient_device_id FROM accounts WHERE ambient_device_id IS NOT NULL ORDER BY created_at ASC LIMIT 1',
+      )
+      .get() as { ambient_device_id: string } | undefined
+    if (!row) return []
+    const token = await getAccessToken()
+    if (!token) return []
+    try {
+      return await listAmbientMediaItems(token, row.ambient_device_id)
+    } catch (err) {
+      app.log.warn({ err }, 'ambient media fetch failed')
+      return []
+    }
+  }
   widgetRegistry.register({
     ...slideshowDef,
     backend: createSlideshowBackend({
       googlePhotos: { list: listAlbumMedia, getAccessToken },
       local: { list: () => listLocalPhotos(localPhotosDir) },
+      ambient: { list: listAmbientForFirstAccount },
     }),
   })
 
@@ -141,6 +160,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerSystemRoutes(app, db.raw)
   registerSceneScheduleRoutes(app, db.raw)
   registerPhotosRoutes(app, { localPhotosDir })
+  registerPhotosAmbientRoutes(app, db.raw, { getAccessToken })
 
   await registerStatic(app, { localPhotosDir })
 

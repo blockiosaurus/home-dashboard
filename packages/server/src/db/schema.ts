@@ -7,6 +7,7 @@ export const accounts = sqliteTable('accounts', {
   refreshTokenEncrypted: text('refresh_token_encrypted').notNull(),
   scopes: text('scopes').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+  ambientDeviceId: text('ambient_device_id'),
 })
 
 export const calendars = sqliteTable('calendars', {

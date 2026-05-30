@@ -1,9 +1,13 @@
 import { fetch } from 'undici'
 
-// Google deprecated the user-facing photoslibrary.readonly scope on
-// 2025-03-31. After that date, OAuth clients requesting it get a 400 from
-// the device-code endpoint. We now request only Calendar.
-const SCOPES = ['https://www.googleapis.com/auth/calendar'].join(' ')
+// Calendar gives us two-way event sync. photosambient is the purpose-built
+// scope for ambient/photo-frame devices that survived the 2025 Library API
+// changes — users pick photo sources in the Google Photos app via a QR
+// code, and we fetch curated media via photosambient.googleapis.com.
+const SCOPES = [
+  'https://www.googleapis.com/auth/calendar',
+  'https://www.googleapis.com/auth/photosambient',
+].join(' ')
 
 export interface DeviceFlowStart {
   deviceCode: string

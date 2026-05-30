@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `ambient_device_id` text;

@@ -18,7 +18,9 @@ export const api = {
         issues?: Array<{ path: string; message: string }>
       }
       const details = body.issues?.map((i) => `${i.path}: ${i.message}`).join('; ')
-      throw new Error(body.error ? `${body.error}${details ? ` — ${details}` : ''}` : 'scene save failed')
+      throw new Error(
+        body.error ? `${body.error}${details ? ` — ${details}` : ''}` : 'scene save failed',
+      )
     }
     return res.json()
   },
@@ -95,6 +97,34 @@ export const api = {
     const res = await fetch('/api/google/albums')
     if (!res.ok) throw new Error('albums fetch failed')
     return res.json() as Promise<{ albums: Array<{ id: string; title: string }> }>
+  },
+  ambientRegister: async () => {
+    const res = await fetch('/api/photos/ambient/register', { method: 'POST' })
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(body.error ?? `ambient register failed (${res.status})`)
+    }
+    return res.json() as Promise<{
+      deviceId: string
+      settingsUri: string
+      mediaSourcesSet: boolean
+      pollIntervalSeconds: number
+    }>
+  },
+  ambientStatus: async () => {
+    const res = await fetch('/api/photos/ambient/status')
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error('ambient status failed')
+    return res.json() as Promise<{
+      deviceId: string
+      settingsUri: string
+      mediaSourcesSet: boolean
+      pollIntervalSeconds: number
+    }>
+  },
+  ambientReset: async () => {
+    const res = await fetch('/api/photos/ambient', { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) throw new Error('ambient reset failed')
   },
   getSchedule: async () => {
     const res = await fetch('/api/scene-schedule')

@@ -14,9 +14,7 @@ export const registerPhotosRoutes = (app: FastifyInstance, deps: PhotosRouteDeps
       // Pre-built URLs the client can drop into <img src>. Each segment is
       // URL-encoded; forward slashes preserved so directory structure is
       // visible.
-      urls: files.map(
-        (rel) => `/photos/${rel.split('/').map(encodeURIComponent).join('/')}`,
-      ),
+      urls: files.map((rel) => `/photos/${rel.split('/').map(encodeURIComponent).join('/')}`),
     }
   })
 }

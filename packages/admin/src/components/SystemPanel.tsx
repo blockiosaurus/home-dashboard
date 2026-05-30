@@ -45,7 +45,11 @@ export const SystemPanel = () => {
           <p className="mb-2 text-xs text-[var(--text-dim)]">
             Wants to redo the setup wizard? This won't disconnect Google or delete your data.
           </p>
-          <Button variant="secondary" onClick={() => redoWizard.mutate()} disabled={redoWizard.isPending}>
+          <Button
+            variant="secondary"
+            onClick={() => redoWizard.mutate()}
+            disabled={redoWizard.isPending}
+          >
             {redoWizard.isPending ? 'Resetting…' : 'Re-run wizard'}
           </Button>
         </div>

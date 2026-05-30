@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { SlideshowView } from './view'
 
 const ConfigSchema = z.object({
-  source: z.enum(['local', 'google-photos']).optional(),
+  source: z.enum(['local', 'google-photos', 'ambient']).optional(),
   albumId: z.string().optional(),
   intervalMs: z.number().int().min(2000).optional(),
   size: z.enum(['w1200-h1200', 'w800-h800', 'w2000-h2000']).optional(),
