@@ -6,8 +6,21 @@ const failWithBody = async (label: string, res: Response): Promise<never> => {
   const body = await res.text().catch(() => '')
   let detail = body
   try {
-    const j = JSON.parse(body) as { error?: { message?: string } }
-    if (j.error?.message) detail = j.error.message
+    const j = JSON.parse(body) as {
+      error?: {
+        message?: string
+        details?: Array<{
+          fieldViolations?: Array<{ field?: string; description?: string }>
+        }>
+      }
+    }
+    const msg = j.error?.message ?? ''
+    // Google often returns useful per-field info under error.details[].fieldViolations
+    const violations = (j.error?.details ?? [])
+      .flatMap((d) => d.fieldViolations ?? [])
+      .map((v) => `${v.field ?? '?'}: ${v.description ?? ''}`)
+      .join('; ')
+    detail = [msg, violations].filter(Boolean).join(' — ')
   } catch {
     // not JSON
   }
@@ -22,27 +35,37 @@ export interface AmbientDevice {
 }
 
 interface RawDevice {
-  deviceId: string
+  // Field name in the schema is `id`; older docs reference `deviceId` —
+  // accept either to be safe.
+  id?: string
+  deviceId?: string
   settingsUri: string
   mediaSourcesSet?: boolean
   pollingConfig?: { pollIntervalSeconds?: number }
 }
 
-const mapDevice = (raw: RawDevice): AmbientDevice => ({
-  deviceId: raw.deviceId,
-  settingsUri: raw.settingsUri,
-  mediaSourcesSet: raw.mediaSourcesSet ?? false,
-  pollIntervalSeconds: raw.pollingConfig?.pollIntervalSeconds ?? 3600,
-})
+const mapDevice = (raw: RawDevice): AmbientDevice => {
+  const deviceId = raw.id ?? raw.deviceId
+  if (!deviceId) throw new Error('ambient device response missing id')
+  return {
+    deviceId,
+    settingsUri: raw.settingsUri,
+    mediaSourcesSet: raw.mediaSourcesSet ?? false,
+    pollIntervalSeconds: raw.pollingConfig?.pollIntervalSeconds ?? 3600,
+  }
+}
 
-export const createAmbientDevice = async (accessToken: string): Promise<AmbientDevice> => {
+export const createAmbientDevice = async (
+  accessToken: string,
+  displayName = 'Family Dashboard',
+): Promise<AmbientDevice> => {
   const res = await fetch(`${API}/devices`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${accessToken}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({}),
+    body: JSON.stringify({ displayName }),
   })
   if (!res.ok) await failWithBody('createAmbientDevice', res)
   return mapDevice((await res.json()) as RawDevice)

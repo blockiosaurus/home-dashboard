@@ -7,11 +7,11 @@ vi.mock('undici', () => ({ fetch: (...a: unknown[]) => fetchMock(...a) }))
 afterEach(() => fetchMock.mockReset())
 
 describe('createAmbientDevice', () => {
-  it('POSTs and returns device + settings url', async () => {
+  it('POSTs displayName and returns device + settings url', async () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
-          deviceId: 'D123',
+          id: 'D123',
           settingsUri: 'https://photos.app.goo.gl/abc',
           mediaSourcesSet: false,
           pollingConfig: { pollIntervalSeconds: 3600 },
@@ -19,10 +19,12 @@ describe('createAmbientDevice', () => {
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     )
-    const out = await createAmbientDevice('TOKEN')
+    const out = await createAmbientDevice('TOKEN', 'My Frame')
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(url).toBe('https://photosambient.googleapis.com/v1/devices')
-    expect((init as { method: string }).method).toBe('POST')
+    const i = init as { method: string; body: string }
+    expect(i.method).toBe('POST')
+    expect(JSON.parse(i.body)).toEqual({ displayName: 'My Frame' })
     expect(out.deviceId).toBe('D123')
     expect(out.settingsUri).toBe('https://photos.app.goo.gl/abc')
     expect(out.mediaSourcesSet).toBe(false)
@@ -34,7 +36,7 @@ describe('getAmbientDevice', () => {
     fetchMock.mockResolvedValue(
       new Response(
         JSON.stringify({
-          deviceId: 'D123',
+          id: 'D123',
           settingsUri: 'https://x',
           mediaSourcesSet: true,
           pollingConfig: { pollIntervalSeconds: 3600 },
