@@ -1,13 +1,12 @@
 import { fetch } from 'undici'
 
-// Calendar gives us two-way event sync. photosambient.mediaitems is the
-// purpose-built scope for ambient/photo-frame devices that survived the 2025
-// Library API changes — users pick photo sources in the Google Photos app
-// via a QR code, and we fetch curated media via photosambient.googleapis.com.
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/photosambient.mediaitems',
-].join(' ')
+// Calendar gives us two-way event sync. We don't request any Photos scope:
+//   - photoslibrary.readonly was deprecated for general use on 2025-03-31
+//   - photosambient.mediaitems requires Google's Partner Program approval
+//     (intended for hardware OEMs, not hobbyists — returns 403 on devices.create
+//     for unapproved clients)
+// The slideshow widget uses a local photos folder instead (see config.localPhotosDir).
+const SCOPES = ['https://www.googleapis.com/auth/calendar'].join(' ')
 
 export interface DeviceFlowStart {
   deviceCode: string

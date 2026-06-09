@@ -266,88 +266,27 @@ const WeatherStep = ({
 }
 
 const AlbumStep = ({ onDone }: { onDone: (id: string | null) => void }) => {
-  const register = useMutation({ mutationFn: api.ambientRegister })
-  const [deviceId, setDeviceId] = useState<string | null>(null)
-  const [settingsUri, setSettingsUri] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount
-  useEffect(() => {
-    register.mutate(undefined, {
-      onSuccess: (d) => {
-        setDeviceId(d.deviceId)
-        setSettingsUri(d.settingsUri)
-        setReady(d.mediaSourcesSet)
-      },
-    })
-  }, [])
-
-  useEffect(() => {
-    if (!deviceId || ready) return
-    const id = setInterval(async () => {
-      try {
-        const status = await api.ambientStatus()
-        if (status?.mediaSourcesSet) {
-          setReady(true)
-          clearInterval(id)
-        }
-      } catch {
-        // keep polling
-      }
-    }, 4000)
-    return () => clearInterval(id)
-  }, [deviceId, ready])
-
   return (
     <div className="flex h-full items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <h1 className="text-2xl font-bold">Photo slideshow</h1>
-        <p className="mt-1 text-sm text-[var(--text-dim)]">
-          Scan this QR with your phone to open the Google Photos app and pick which albums or
-          favorites the dashboard should show.
+        <p className="mt-2 text-sm text-[var(--text-dim)]">
+          The dashboard plays photos from a folder on the device. Drop your family photos into:
+        </p>
+        <code className="mt-3 block rounded-lg bg-gray-100 p-3 text-xs">
+          /var/lib/dashboard/photos/
+        </code>
+        <p className="mt-3 text-xs text-[var(--text-dim)]">
+          Or, in development, <code>packages/server/data/photos/</code>. JPG, PNG, WebP, AVIF, GIF
+          all work — subfolders too. The dashboard rescans every hour.
+        </p>
+        <p className="mt-3 text-xs text-[var(--text-dim)]">
+          (Google Photos' Ambient API requires Partner Program approval, so it isn't an option for
+          personal projects.)
         </p>
 
-        {register.isPending ? (
-          <div className="mt-4 text-sm text-[var(--text-dim)]">Registering with Google…</div>
-        ) : register.isError ? (
-          <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-            {register.error instanceof Error ? register.error.message : 'Registration failed.'}
-            <br />
-            <span className="text-xs text-red-600">
-              Make sure the Photos Ambient API is enabled in your Google Cloud project, then re-run
-              the wizard.
-            </span>
-          </div>
-        ) : settingsUri ? (
-          <div className="mt-4 flex flex-col items-center gap-3">
-            <div className="rounded-2xl bg-white p-3 shadow-[var(--shadow-card)]">
-              <QRCodeSVG value={settingsUri} size={220} />
-            </div>
-            <a
-              href={settingsUri}
-              target="_blank"
-              rel="noreferrer"
-              className="break-all text-xs text-[var(--accent)] underline"
-            >
-              {settingsUri}
-            </a>
-            <div className="text-xs text-[var(--text-dim)]">
-              {ready ? (
-                <span className="font-semibold text-green-700">
-                  ✓ Sources configured — continue when ready.
-                </span>
-              ) : (
-                'Waiting for you to finish in the Google Photos app…'
-              )}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="mt-6 flex gap-2">
-          <Button variant="secondary" className="flex-1" onClick={() => onDone(null)}>
-            Skip
-          </Button>
-          <Button className="flex-1" disabled={!ready} onClick={() => onDone(deviceId)}>
+        <div className="mt-6">
+          <Button className="w-full" onClick={() => onDone(null)}>
             Continue
           </Button>
         </div>
