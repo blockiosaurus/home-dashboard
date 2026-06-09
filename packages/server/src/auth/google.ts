@@ -83,6 +83,18 @@ export const pollDeviceFlow = async (
   throw new Error(`device flow poll failed: ${JSON.stringify(j)}`)
 }
 
+/**
+ * Thrown when Google rejects a refresh token as no longer valid
+ * (revoked, expired, or replaced by a fresher one). The caller should
+ * drop the stored account and prompt the user to re-authorize.
+ */
+export class InvalidRefreshTokenError extends Error {
+  constructor(detail: string) {
+    super(`refresh token invalid: ${detail}`)
+    this.name = 'InvalidRefreshTokenError'
+  }
+}
+
 export const refreshAccessToken = async (
   clientId: string,
   clientSecret: string,
@@ -98,7 +110,22 @@ export const refreshAccessToken = async (
       grant_type: 'refresh_token',
     }),
   })
-  if (!res.ok) throw new Error(`refresh failed: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    let errorCode = ''
+    let errorDescription = body
+    try {
+      const j = JSON.parse(body) as { error?: string; error_description?: string }
+      errorCode = j.error ?? ''
+      errorDescription = j.error_description ?? errorCode ?? body
+    } catch {
+      // not JSON
+    }
+    if (errorCode === 'invalid_grant') {
+      throw new InvalidRefreshTokenError(errorDescription || 'invalid_grant')
+    }
+    throw new Error(`refresh failed: ${res.status} ${errorDescription}`.trim())
+  }
   const j = (await res.json()) as { access_token: string; expires_in: number }
   return { accessToken: j.access_token, expiresAt: Date.now() + j.expires_in * 1000 }
 }

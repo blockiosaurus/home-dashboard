@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import { createEncryptor, deriveKey } from '../auth/encryption'
-import { refreshAccessToken } from '../auth/google'
+import { InvalidRefreshTokenError, refreshAccessToken } from '../auth/google'
 import { createTokenCache } from '../auth/token-cache'
 import { createScheduler } from '../scheduler'
 import type { Broker } from '../ws/broker'
@@ -59,46 +59,62 @@ export const startSyncService = async (opts: SyncServiceOptions) => {
       .prepare('SELECT id, refresh_token_encrypted FROM accounts')
       .all() as Array<{ id: string; refresh_token_encrypted: string }>
     for (const acc of accounts) {
-      const refreshToken = enc.decrypt(acc.refresh_token_encrypted)
-      const accessToken = await tokenCache.get(refreshToken)
-
-      // Discover calendars on Google and mirror them into our calendars table.
-      // Any pre-existing rows keep their visibility / sync_token; new ones
-      // are inserted as visible=1.
       try {
-        const remoteCals = await listCalendars(accessToken)
-        for (const r of remoteCals) {
-          upsertCalendar(opts.db, {
-            id: `${acc.id}::${r.id}`,
-            accountId: acc.id,
-            googleCalendarId: r.id,
-            summary: r.summary,
-          })
+        const refreshToken = enc.decrypt(acc.refresh_token_encrypted)
+        const accessToken = await tokenCache.get(refreshToken)
+
+        // Discover calendars on Google and mirror them into our calendars
+        // table. Pre-existing rows keep their visibility / sync_token; new
+        // ones are inserted as visible=1.
+        try {
+          const remoteCals = await listCalendars(accessToken)
+          for (const r of remoteCals) {
+            upsertCalendar(opts.db, {
+              id: `${acc.id}::${r.id}`,
+              accountId: acc.id,
+              googleCalendarId: r.id,
+              summary: r.summary,
+            })
+          }
+        } catch (err) {
+          // Log but don't abort — we may still have cached calendars to sync.
+          console.error('listCalendars failed', err)
+        }
+
+        const cals = opts.db
+          .prepare(
+            'SELECT id, google_calendar_id FROM calendars WHERE account_id = ? AND visible = 1',
+          )
+          .all(acc.id) as Array<{ id: string; google_calendar_id: string }>
+        for (const c of cals) {
+          try {
+            const result = await syncCalendarOnce({
+              calendarId: c.id,
+              accessToken,
+              currentSyncToken: getSyncToken(opts.db, c.id),
+              timeWindowDays: 90,
+              list: (token, _, args) => listEvents(token, c.google_calendar_id, args),
+              persist: (_calId, events: CachedEvent[]) => upsertEvents(opts.db, events),
+              setToken: (calId, token) => setSyncToken(opts.db, calId, token),
+              now: Date.now,
+            })
+            if (result.upserts + result.deletes > 0) {
+              opts.broker.publish({ type: 'calendar:changed' })
+            }
+          } catch (err) {
+            console.error(`sync failed for calendar ${c.id}`, err)
+          }
         }
       } catch (err) {
-        // Log but don't abort — we may still have cached calendars to sync.
-        console.error('listCalendars failed', err)
-      }
-
-      const cals = opts.db
-        .prepare(
-          'SELECT id, google_calendar_id FROM calendars WHERE account_id = ? AND visible = 1',
-        )
-        .all(acc.id) as Array<{ id: string; google_calendar_id: string }>
-      for (const c of cals) {
-        const result = await syncCalendarOnce({
-          calendarId: c.id,
-          accessToken,
-          currentSyncToken: getSyncToken(opts.db, c.id),
-          timeWindowDays: 90,
-          list: (token, _, args) => listEvents(token, c.google_calendar_id, args),
-          persist: (_calId, events: CachedEvent[]) => upsertEvents(opts.db, events),
-          setToken: (calId, token) => setSyncToken(opts.db, calId, token),
-          now: Date.now,
-        })
-        if (result.upserts + result.deletes > 0) {
-          opts.broker.publish({ type: 'calendar:changed' })
+        if (err instanceof InvalidRefreshTokenError) {
+          // Token has been revoked or superseded — most often because the user
+          // re-ran the wizard, creating a fresher account row. Drop the dead
+          // one so future ticks don't crash.
+          console.warn(`removing account ${acc.id}: ${err.message}`)
+          opts.db.prepare('DELETE FROM accounts WHERE id = ?').run(acc.id)
+          continue
         }
+        console.error(`sync failed for account ${acc.id}`, err)
       }
     }
   })
