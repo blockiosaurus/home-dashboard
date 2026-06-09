@@ -47,9 +47,16 @@ export const GridCanvas = ({
         }),
       )
     }
+    // Free-form layout: no auto-compaction, allow temporary overlap during
+    // drag so widgets aren't snapped back/up when colliding. User is
+    // responsible for resolving overlaps before Publish.
     compactType={null}
-    preventCollision
+    verticalCompact={false}
+    preventCollision={false}
+    allowOverlap
     isBounded
+    isDraggable
+    isResizable
   >
     {cells.map((c) => (
       <div
