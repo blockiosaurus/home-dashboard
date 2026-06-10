@@ -1,10 +1,15 @@
 import type { LayoutCell } from '@dashboard/core'
 import { GRID_COLS, GRID_ROWS } from '@dashboard/core'
 import { useEffect, useState } from 'react'
-import RGL from 'react-grid-layout'
+import RGL, { WidthProvider } from 'react-grid-layout'
 import type ReactGridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import { clampCell } from '../grid-utils'
+
+// WidthProvider measures the container itself, avoiding race conditions
+// between our ResizeObserver and RGL's pixel→grid math (which was almost
+// certainly causing widgets to land at column 0).
+const ResponsiveRGL = WidthProvider(RGL)
 
 type Layout = ReactGridLayout.Layout
 
@@ -13,7 +18,6 @@ export interface GridCanvasProps {
   onChange: (cells: LayoutCell[]) => void
   onSelect: (instanceId: string | null) => void
   selectedInstanceId: string | null
-  width: number
 }
 
 const toLayout = (cells: LayoutCell[]): Layout[] =>
@@ -36,7 +40,6 @@ export const GridCanvas = ({
   onChange,
   onSelect,
   selectedInstanceId,
-  width,
 }: GridCanvasProps) => {
   // Hold the layout locally so RGL can manage positions during drag/resize
   // without us echoing every interim frame back through props and triggering
@@ -62,12 +65,11 @@ export const GridCanvas = ({
   }
 
   return (
-    <RGL
+    <ResponsiveRGL
       className="rounded-2xl bg-white shadow-[var(--shadow-card)]"
       cols={GRID_COLS}
       maxRows={GRID_ROWS}
       rowHeight={40}
-      width={width}
       layout={layout}
       // Track live moves in local state so RGL has stable reference between
       // frames. Don't notify the parent until interaction ends.
@@ -97,6 +99,6 @@ export const GridCanvas = ({
           {c.widgetId}
         </div>
       ))}
-    </RGL>
+    </ResponsiveRGL>
   )
 }

@@ -1,7 +1,7 @@
 import type { LayoutCell, Scene } from '@dashboard/core'
 import { Button } from '@dashboard/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api'
 import { GridCanvas } from '../components/GridCanvas'
 import { WidgetConfigPanel } from '../components/WidgetConfigPanel'
@@ -13,8 +13,6 @@ export const SceneEditor = () => {
   const { data } = useQuery({ queryKey: ['scenes'], queryFn: api.getScenes })
   const { draft, setDraft, setCells, markClean } = useEditorStore()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(800)
 
   useEffect(() => {
     if (!draft && data) {
@@ -22,16 +20,6 @@ export const SceneEditor = () => {
       if (active) setDraft({ ...active, dirty: false })
     }
   }, [data, draft, setDraft])
-
-  useEffect(() => {
-    if (!ref.current) return
-    const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width
-      if (w) setWidth(w)
-    })
-    ro.observe(ref.current)
-    return () => ro.disconnect()
-  }, [])
 
   const publish = useMutation({
     mutationFn: async () => {
@@ -94,13 +82,12 @@ export const SceneEditor = () => {
       ) : null}
       <div className="flex flex-1 gap-3">
         <WidgetPalette existing={draft.cells} onAdd={onAddWidget} />
-        <div className="flex-1" ref={ref}>
+        <div className="flex-1 min-w-0">
           <GridCanvas
             cells={draft.cells}
             onChange={onCanvasChange}
             onSelect={setSelectedId}
             selectedInstanceId={selectedId}
-            width={width}
           />
         </div>
         <WidgetConfigPanel cell={selectedCell} onChange={onConfigChange} onDelete={onDelete} />
