@@ -1,4 +1,5 @@
 import type { Scene } from '@dashboard/core'
+import { OnScreenKeyboard } from '@dashboard/ui'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { SceneRenderer } from './SceneRenderer'
@@ -43,5 +44,6 @@ const Inner = () => {
 export const App = () => (
   <QueryClientProvider client={qc}>
     <Inner />
+    <OnScreenKeyboard />
   </QueryClientProvider>
 )

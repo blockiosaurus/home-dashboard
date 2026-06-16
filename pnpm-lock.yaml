@@ -237,6 +237,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.6(react@19.2.6)
+      react-simple-keyboard:
+        specifier: 3.7.110
+        version: 3.7.110(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
     devDependencies:
       '@types/react':
         specifier: 19.0.2
@@ -2498,6 +2501,12 @@ packages:
     peerDependencies:
       react: '>=16.8'
 
+  react-simple-keyboard@3.7.110:
+    resolution: {integrity: sha512-duMjaqGzKQpMxgFpgbZHzSbxj3qB740QRtutypfy32O1Bp68DeMjYjN/gd4F4kR+7PW95pOr72YPnhV2kM5LwQ==}
+    peerDependencies:
+      react: ^16.0.0 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0
+
   react@19.0.0:
     resolution: {integrity: sha512-V8AVnmPIICiWpGfm6GLzCR/W5FXLchHop40W4nXBmdlEceh16rCN8O8LNWm5bh5XUX91fh7KpA+W0TgMKmgTpQ==}
     engines: {node: '>=0.10.0'}
@@ -4602,6 +4611,11 @@ snapshots:
     dependencies:
       '@remix-run/router': 1.21.0
       react: 19.0.0
+
+  react-simple-keyboard@3.7.110(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+    dependencies:
+      react: 19.2.6
+      react-dom: 19.2.6(react@19.2.6)
 
   react@19.0.0: {}
 

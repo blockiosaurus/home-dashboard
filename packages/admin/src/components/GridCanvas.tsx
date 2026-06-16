@@ -35,12 +35,7 @@ const sameLayout = (a: Layout[], b: Layout[]): boolean => {
   return true
 }
 
-export const GridCanvas = ({
-  cells,
-  onChange,
-  onSelect,
-  selectedInstanceId,
-}: GridCanvasProps) => {
+export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: GridCanvasProps) => {
   // Hold the layout locally so RGL can manage positions during drag/resize
   // without us echoing every interim frame back through props and triggering
   // a re-sync. We push to the parent only on drag/resize stop.

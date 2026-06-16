@@ -1,3 +1,4 @@
+import { OnScreenKeyboard } from '@dashboard/ui'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { NavLink, Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { api } from './api'
@@ -53,5 +54,6 @@ export const App = () => (
         <Route path="*" element={<Shell />} />
       </Routes>
     </Router>
+    <OnScreenKeyboard />
   </QueryClientProvider>
 )
