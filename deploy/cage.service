@@ -15,11 +15,16 @@ StandardError=journal
 UtmpIdentifier=tty7
 UtmpMode=user
 
-Environment=XDG_RUNTIME_DIR=/run/user/1001
+# Let systemd manage the runtime dir (auto-created at /run/cage-dashboard with
+# 0700 owned by User=). XDG_RUNTIME_DIR is what cage/Wayland use for the
+# wayland-0 socket. Avoids the systemd-logind /run/user/$uid path which
+# doesn't exist for system users.
+RuntimeDirectory=cage-dashboard
+RuntimeDirectoryMode=0700
+Environment=XDG_RUNTIME_DIR=/run/cage-dashboard
 Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=MOZ_ENABLE_WAYLAND=1
 
-ExecStartPre=/usr/bin/install -d -o dashboard -g dashboard -m 0700 /run/user/1001
 ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
   --kiosk \
   --noerrdialogs \
