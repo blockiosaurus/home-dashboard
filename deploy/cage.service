@@ -1,7 +1,7 @@
 [Unit]
 Description=Family Dashboard Kiosk (cage + Chromium)
-After=dashboard.service network-online.target
-Requires=dashboard.service
+After=dashboard.service seatd.service network-online.target
+Requires=dashboard.service seatd.service
 
 [Service]
 Type=simple

@@ -62,8 +62,11 @@ apt-get update -y
 apt-get install -y \
   curl ca-certificates gnupg git build-essential \
   avahi-daemon \
-  cage chromium-browser libnss3 \
+  cage chromium-browser libnss3 seatd \
   sqlite3
+# seatd brokers /dev/dri and input devices to non-logind services. Required
+# for cage to launch outside a logind session.
+systemctl enable --now seatd
 log_ok "apt packages installed"
 
 # ---- 3. Node 22 via NodeSource ------------------------------------------------
@@ -89,6 +92,13 @@ if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
     --shell /usr/sbin/nologin --groups video,render,input,tty \
     "$SERVICE_USER"
 fi
+# Add to the seatd group so cage can request a seat. Group name varies by
+# distro — try both, ignore failures.
+for grp in _seatd seat; do
+  if getent group "$grp" >/dev/null 2>&1; then
+    usermod -aG "$grp" "$SERVICE_USER" || true
+  fi
+done
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$DATA_DIR"
 log_ok "user + data dir ready"
 
