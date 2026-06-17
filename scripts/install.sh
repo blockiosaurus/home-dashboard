@@ -63,6 +63,7 @@ apt-get install -y \
   curl ca-certificates gnupg git build-essential \
   avahi-daemon \
   cage chromium-browser libnss3 seatd \
+  fontconfig fonts-noto-core \
   sqlite3
 # seatd brokers /dev/dri and input devices to non-logind services. Required
 # for cage to launch outside a logind session. Run as root with the video
