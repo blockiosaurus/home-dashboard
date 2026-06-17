@@ -15,6 +15,18 @@ set -e
 OUTPUT="${CAGE_OUTPUT:-HDMI-A-1}"
 TRANSFORM="${CAGE_TRANSFORM:-90}"
 
+# Clear Chromium's "did not exit cleanly" flag so we never see the
+# "Restore pages?" bubble on relaunch. Service is always killed by
+# systemd, never by user action, so a "crash" here is just a normal
+# restart.
+CHROMIUM_PREFS="${HOME:-/home/dashboard}/.config/chromium/Default/Preferences"
+if [ -f "$CHROMIUM_PREFS" ]; then
+  sed -i \
+    -e 's/"exit_type":"[^"]*"/"exit_type":"Normal"/' \
+    -e 's/"exited_cleanly":false/"exited_cleanly":true/' \
+    "$CHROMIUM_PREFS" || true
+fi
+
 /usr/bin/cage "$@" &
 CAGE_PID=$!
 
