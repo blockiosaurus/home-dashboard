@@ -32,8 +32,15 @@ export const RotatedRoot = ({ children }: { children: ReactNode }) => {
 
   if (rotation === 0) return <>{children}</>
 
-  // For 90 / 270 rotations the page's *logical* width and height swap:
-  // the content is sized like portrait but the viewport is landscape.
+  // For 90 / 270 the page's *logical* width and height swap: the content
+  // is sized like portrait (100vh × 100vw) but the viewport is landscape.
+  // CSS transforms apply right-to-left, so we rotate first then translate
+  // the rotated content back into the visible viewport.
+  //
+  //   90° CW : rotate puts content in -100vw..0 X range; translateX(100vw)
+  //            slides it into 0..100vw.
+  //  270° CW : rotate puts content in -100vh..0 Y range; translateY(100vh)
+  //            slides it into 0..100vh.
   const swap = rotation === 90 || rotation === 270
   const containerStyle: React.CSSProperties = swap
     ? {
@@ -44,8 +51,8 @@ export const RotatedRoot = ({ children }: { children: ReactNode }) => {
         height: '100vw',
         transform:
           rotation === 90
-            ? 'rotate(90deg) translateY(-100vh)'
-            : 'rotate(-90deg) translateX(-100vw)',
+            ? 'translateX(100vw) rotate(90deg)'
+            : 'translateY(100vh) rotate(-90deg)',
         transformOrigin: 'top left',
       }
     : {
