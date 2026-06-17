@@ -63,4 +63,6 @@ Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=graphical.target
+# We boot to multi-user.target (no display-manager). Hook cage there so it
+# auto-starts at boot without needing the full graphical.target chain.
+WantedBy=multi-user.target
