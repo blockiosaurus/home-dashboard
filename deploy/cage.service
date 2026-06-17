@@ -25,6 +25,18 @@ Environment=XDG_RUNTIME_DIR=/run/cage-dashboard
 Environment=WLR_LIBINPUT_NO_DEVICES=1
 Environment=MOZ_ENABLE_WAYLAND=1
 
+# libseat: skip logind backend (we're a system service with no session),
+# go straight to seatd.
+Environment=LIBSEAT_BACKEND=seatd
+
+# wlroots on Pi 4: the V3D DRM driver rejects the buffer formats the GL
+# renderer asks for, producing "Swapchain ... failed test" errors. Pixman
+# is software-only but more than fast enough for this UI, and the legacy
+# KMS path avoids atomic modesetting bugs.
+Environment=WLR_RENDERER=pixman
+Environment=WLR_DRM_NO_ATOMIC=1
+Environment=WLR_NO_HARDWARE_CURSORS=1
+
 ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
   --kiosk \
   --noerrdialogs \

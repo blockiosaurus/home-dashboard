@@ -65,8 +65,24 @@ apt-get install -y \
   cage chromium-browser libnss3 seatd \
   sqlite3
 # seatd brokers /dev/dri and input devices to non-logind services. Required
-# for cage to launch outside a logind session.
+# for cage to launch outside a logind session. Run as root with the video
+# group owning the socket so our `dashboard` user (already in `video`) can
+# connect without a dedicated seatd group existing on this distro.
+install -d -m 0755 /etc/systemd/system/seatd.service.d
+SEATD_BIN="$(command -v seatd || echo /usr/sbin/seatd)"
+cat >/etc/systemd/system/seatd.service.d/group.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=${SEATD_BIN} -g video
+EOF
+systemctl daemon-reload
 systemctl enable --now seatd
+
+# Make the Pi boot to console (not the desktop) so cage owns HDMI without
+# fighting LightDM. Safe to re-run.
+systemctl set-default multi-user.target >/dev/null
+systemctl disable --now lightdm 2>/dev/null || true
+systemctl disable --now getty@tty7 2>/dev/null || true
 log_ok "apt packages installed"
 
 # ---- 3. Node 22 via NodeSource ------------------------------------------------
