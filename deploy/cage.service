@@ -37,6 +37,11 @@ Environment=WLR_RENDERER=pixman
 Environment=WLR_DRM_NO_ATOMIC=1
 Environment=WLR_NO_HARDWARE_CURSORS=1
 
+# Hide the cursor via a blank xcursor theme. install.sh writes
+# /usr/share/icons/blank for us.
+Environment=XCURSOR_THEME=blank
+Environment=XCURSOR_SIZE=1
+
 ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
   --kiosk \
   --noerrdialogs \

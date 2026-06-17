@@ -84,6 +84,15 @@ systemctl enable --now seatd
 systemctl set-default multi-user.target >/dev/null
 systemctl disable --now lightdm 2>/dev/null || true
 systemctl disable --now getty@tty7 2>/dev/null || true
+
+# Blank xcursor theme so cage doesn't draw a cursor on the touchscreen.
+install -d /usr/share/icons/blank/cursors
+touch /usr/share/icons/blank/cursors/default
+cat >/usr/share/icons/blank/index.theme <<'EOF'
+[Icon Theme]
+Name=blank
+Inherits=core
+EOF
 log_ok "apt packages installed"
 
 # ---- 3. Node 22 via NodeSource ------------------------------------------------
