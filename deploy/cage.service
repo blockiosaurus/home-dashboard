@@ -59,7 +59,7 @@ ExecStart=/usr/local/bin/cage-rotated -s -- /usr/bin/chromium \
   --start-fullscreen \
   --password-store=basic \
   --use-mock-keychain \
-  --disable-features=TranslateUI \
+  --disable-features=TranslateUI,PasswordManagerOnboarding \
   http://localhost:3000/
 
 Restart=always

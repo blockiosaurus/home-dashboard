@@ -85,6 +85,11 @@ systemctl set-default multi-user.target >/dev/null
 systemctl disable --now lightdm 2>/dev/null || true
 systemctl disable --now getty@tty7 2>/dev/null || true
 
+# gnome-keyring intercepts secret-service requests and pops up a dialog
+# Chromium kiosk can't dismiss. Remove it — nothing on the dashboard
+# needs it once we pass --password-store=basic to Chromium.
+apt-get purge -y gnome-keyring gnome-keyring-pkcs11 2>/dev/null || true
+
 # Blank xcursor theme so cage doesn't draw a cursor on the touchscreen.
 install -d /usr/share/icons/blank/cursors
 touch /usr/share/icons/blank/cursors/default
