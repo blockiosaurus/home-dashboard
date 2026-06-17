@@ -97,10 +97,12 @@ log_ok "Node $(node -v)"
 
 # ---- 4. pnpm via corepack -----------------------------------------------------
 log_step "4/11 Enabling pnpm via corepack"
+# `corepack enable` (run as root) only installs the shim binaries to
+# /usr/local/bin. The actual pnpm package is downloaded into the running
+# user's ~/.cache on first invocation — we prepare it as the dashboard
+# user later (Step 7) so the cache ends up owned correctly.
 corepack enable
-corepack prepare pnpm@9.15.0 --activate
-pnpm -v
-log_ok "pnpm $(pnpm -v)"
+log_ok "corepack shims installed"
 
 # ---- 5. System user + data dir ------------------------------------------------
 log_step "5/11 Creating $SERVICE_USER user and $DATA_DIR"
@@ -131,7 +133,12 @@ log_ok "sources synced"
 
 # ---- 7. Install deps + build ------------------------------------------------
 log_step "7/11 pnpm install + build (this is the long step)"
+# Prime corepack's pnpm cache as the dashboard user so the cache lives at
+# /home/dashboard/.cache/node/corepack and is readable when systemd runs
+# the service. Belt-and-suspenders: chown the home dir afterward.
+sudo -u "$SERVICE_USER" -H bash -lc "corepack prepare pnpm@9.15.0 --activate"
 sudo -u "$SERVICE_USER" -H bash -lc "cd $INSTALL_DIR && pnpm install --frozen-lockfile && pnpm -r build"
+chown -R "$SERVICE_USER":"$SERVICE_GROUP" "/home/$SERVICE_USER"
 log_ok "build complete"
 
 # ---- 8. systemd units --------------------------------------------------------
