@@ -57,6 +57,9 @@ ExecStart=/usr/local/bin/cage-rotated -s -- /usr/bin/chromium \
   --ozone-platform=wayland \
   --enable-features=UseOzonePlatform \
   --start-fullscreen \
+  --password-store=basic \
+  --use-mock-keychain \
+  --disable-features=TranslateUI \
   http://localhost:3000/
 
 Restart=always

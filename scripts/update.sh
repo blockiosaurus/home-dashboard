@@ -33,6 +33,10 @@ install -m 0644 "$INSTALL_DIR/deploy/dashboard.service" /etc/systemd/system/dash
 install -m 0644 "$INSTALL_DIR/deploy/cage.service" /etc/systemd/system/cage.service
 install -m 0755 "$INSTALL_DIR/deploy/cage-rotated" /usr/local/bin/cage-rotated
 install -m 0644 "$INSTALL_DIR/deploy/avahi/dashboard.service" /etc/avahi/services/dashboard.service
+install -m 0644 "$INSTALL_DIR/deploy/udev/99-touchscreen-rotate.rules" \
+  /etc/udev/rules.d/99-touchscreen-rotate.rules
+udevadm control --reload 2>/dev/null || true
+udevadm trigger 2>/dev/null || true
 install -d /usr/share/icons/blank/cursors
 touch /usr/share/icons/blank/cursors/default
 cat >/usr/share/icons/blank/index.theme <<'EOF'
