@@ -22,9 +22,11 @@ StandardError=journal
 # Hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ProtectHome=true
+# ProtectHome must stay off — corepack-managed pnpm lives in
+# /home/dashboard/.cache/node/corepack and the service needs to read it.
+ProtectHome=false
 PrivateTmp=true
-ReadWritePaths=/var/lib/dashboard
+ReadWritePaths=/var/lib/dashboard /home/dashboard/.cache
 
 [Install]
 WantedBy=multi-user.target
