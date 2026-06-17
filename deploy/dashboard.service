@@ -11,6 +11,7 @@ Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=HOST=0.0.0.0
 Environment=DATA_DIR=/var/lib/dashboard
+Environment=LOCAL_PHOTOS_DIR=/var/lib/dashboard/photos
 EnvironmentFile=-/etc/dashboard/env
 WorkingDirectory=/opt/dashboard
 ExecStart=/usr/bin/pnpm --filter @dashboard/server start
