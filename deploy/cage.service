@@ -48,21 +48,7 @@ Environment=XCURSOR_SIZE=1
 # or =270 to flip the other way).
 Environment=CAGE_OUTPUT=HDMI-A-1
 Environment=CAGE_TRANSFORM=90
-ExecStart=/usr/local/bin/cage-rotated -s -- /usr/bin/chromium \
-  --kiosk \
-  --noerrdialogs \
-  --disable-infobars \
-  --check-for-update-interval=31536000 \
-  --no-first-run \
-  --ozone-platform=wayland \
-  --enable-features=UseOzonePlatform \
-  --start-fullscreen \
-  --password-store=basic \
-  --use-mock-keychain \
-  --disable-features=TranslateUI,PasswordManagerOnboarding \
-  --disable-session-crashed-bubble \
-  --hide-crash-restore-bubble \
-  http://localhost:3000/
+ExecStart=/usr/local/bin/cage-rotated -s -- /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --check-for-update-interval=31536000 --no-first-run --ozone-platform=wayland --enable-features=UseOzonePlatform --start-fullscreen --password-store=basic --use-mock-keychain --disable-features=TranslateUI,PasswordManagerOnboarding --disable-session-crashed-bubble --hide-crash-restore-bubble --user-data-dir=/var/lib/dashboard/chromium-profile http://localhost:3000/?rotate=270
 
 Restart=always
 RestartSec=5

@@ -134,6 +134,7 @@ for grp in _seatd seat; do
 done
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0750 "$DATA_DIR"
 install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0755 "$DATA_DIR/photos"
+install -d -o "$SERVICE_USER" -g "$SERVICE_GROUP" -m 0700 "$DATA_DIR/chromium-profile"
 log_ok "user + data dir ready"
 
 # ---- 6. Copy sources to $INSTALL_DIR -----------------------------------------
