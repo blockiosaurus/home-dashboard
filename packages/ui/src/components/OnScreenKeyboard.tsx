@@ -65,12 +65,21 @@ export const OnScreenKeyboard = ({ enabled }: OnScreenKeyboardProps) => {
   const [layout, setLayout] = useState<'default' | 'shift' | 'numbers'>('default')
   const overlayRef = useRef<HTMLDivElement>(null)
 
-  // Default: show on coarse-pointer / touch devices unless explicitly disabled.
-  const auto = (() => {
+  // Resolution order for whether the keyboard is active:
+  //   1. Explicit `enabled` prop (overrides everything)
+  //   2. ?keyboard=1 in the URL (force on — for kiosks where auto-detect fails)
+  //   3. ?keyboard=0 in the URL (force off — for desktop dev)
+  //   4. (pointer: coarse) media query — auto-detect touch devices
+  // (4) is unreliable in cage/wlroots Chromium on the Pi, hence (2).
+  const detected = (() => {
     if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search)
+    const param = params.get('keyboard')
+    if (param === '1' || param === 'true') return true
+    if (param === '0' || param === 'false') return false
     return window.matchMedia?.('(pointer: coarse)').matches ?? false
   })()
-  const active = enabled ?? auto
+  const active = enabled ?? detected
 
   useEffect(() => {
     if (!active) return
