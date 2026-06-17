@@ -62,7 +62,7 @@ apt-get update -y
 apt-get install -y \
   curl ca-certificates gnupg git build-essential \
   avahi-daemon \
-  cage chromium-browser libnss3 seatd \
+  cage chromium-browser libnss3 seatd wlr-randr \
   fontconfig fonts-noto-core \
   sqlite3
 # seatd brokers /dev/dri and input devices to non-logind services. Required
@@ -155,6 +155,7 @@ log_ok "build complete"
 log_step "8/11 Installing systemd units"
 install -m 0644 "$INSTALL_DIR/deploy/dashboard.service" /etc/systemd/system/dashboard.service
 install -m 0644 "$INSTALL_DIR/deploy/cage.service" /etc/systemd/system/cage.service
+install -m 0755 "$INSTALL_DIR/deploy/cage-rotated" /usr/local/bin/cage-rotated
 install -d -m 0755 /etc/dashboard
 if [ ! -f /etc/dashboard/env ]; then
   cat >/etc/dashboard/env <<'EOF'

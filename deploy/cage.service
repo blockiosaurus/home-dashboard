@@ -42,7 +42,13 @@ Environment=WLR_NO_HARDWARE_CURSORS=1
 Environment=XCURSOR_THEME=blank
 Environment=XCURSOR_SIZE=1
 
-ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
+# `cage-rotated` is a tiny wrapper that calls wlr-randr after the Wayland
+# socket appears, applying $CAGE_TRANSFORM to $CAGE_OUTPUT. Override either
+# via a systemd drop-in (e.g. set CAGE_TRANSFORM=normal to disable rotation,
+# or =270 to flip the other way).
+Environment=CAGE_OUTPUT=HDMI-A-1
+Environment=CAGE_TRANSFORM=90
+ExecStart=/usr/local/bin/cage-rotated -s -- /usr/bin/chromium \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \

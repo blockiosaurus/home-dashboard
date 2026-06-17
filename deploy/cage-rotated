@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Wrapper around `cage` that sets an output transform via wlr-randr once the
+# Wayland socket appears. Used by cage.service on systems where the kernel
+# `video=...:rotate=` parameter is not honored by the KMS driver (common on
+# Pi 4 + Bookworm).
+#
+# Environment variables read:
+#   CAGE_OUTPUT     — Wayland output name (default HDMI-A-1)
+#   CAGE_TRANSFORM  — wlr-randr transform (default 90)
+#
+# Pass cage's own args after a `--` exactly as the unit would.
+
+set -e
+
+OUTPUT="${CAGE_OUTPUT:-HDMI-A-1}"
+TRANSFORM="${CAGE_TRANSFORM:-90}"
+
+/usr/bin/cage "$@" &
+CAGE_PID=$!
+
+# Wait up to ~6s for the Wayland socket to appear, then apply the transform.
+# Failure is non-fatal so a missing wlr-randr or unsupported transform does
+# not take down the kiosk.
+for _ in $(seq 1 30); do
+  if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+    WAYLAND_DISPLAY=wayland-0 /usr/bin/wlr-randr \
+      --output "$OUTPUT" --transform "$TRANSFORM" >/dev/null 2>&1 || true
+    break
+  fi
+  sleep 0.2
+done
+
+wait "$CAGE_PID"
