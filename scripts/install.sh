@@ -162,8 +162,9 @@ log_step "8/11 Installing systemd units"
 install -m 0644 "$INSTALL_DIR/deploy/dashboard.service" /etc/systemd/system/dashboard.service
 install -m 0644 "$INSTALL_DIR/deploy/cage.service" /etc/systemd/system/cage.service
 install -m 0755 "$INSTALL_DIR/deploy/cage-rotated" /usr/local/bin/cage-rotated
-install -m 0644 "$INSTALL_DIR/deploy/udev/99-touchscreen-rotate.rules" \
-  /etc/udev/rules.d/99-touchscreen-rotate.rules
+# Wipe an older OS-level touchscreen calibration if present — CSS rotation
+# in the dashboard SPA handles touch translation natively.
+rm -f /etc/udev/rules.d/99-touchscreen-rotate.rules
 udevadm control --reload 2>/dev/null || true
 udevadm trigger 2>/dev/null || true
 install -d -m 0755 /etc/dashboard

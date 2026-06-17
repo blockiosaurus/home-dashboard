@@ -33,8 +33,11 @@ install -m 0644 "$INSTALL_DIR/deploy/dashboard.service" /etc/systemd/system/dash
 install -m 0644 "$INSTALL_DIR/deploy/cage.service" /etc/systemd/system/cage.service
 install -m 0755 "$INSTALL_DIR/deploy/cage-rotated" /usr/local/bin/cage-rotated
 install -m 0644 "$INSTALL_DIR/deploy/avahi/dashboard.service" /etc/avahi/services/dashboard.service
-install -m 0644 "$INSTALL_DIR/deploy/udev/99-touchscreen-rotate.rules" \
-  /etc/udev/rules.d/99-touchscreen-rotate.rules
+
+# Older installs may have a touchscreen calibration rule from when we did
+# rotation at the OS level. Browser-side CSS rotation handles touch
+# coordinates natively, so the rule now fights the CSS. Remove it.
+rm -f /etc/udev/rules.d/99-touchscreen-rotate.rules
 udevadm control --reload 2>/dev/null || true
 udevadm trigger 2>/dev/null || true
 install -d /usr/share/icons/blank/cursors
