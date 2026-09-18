@@ -1,10 +1,18 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
-import { loadSystem } from '../system/store'
+import { type WeatherDefault, loadSystem } from '../system/store'
 
 export const registerWidgetsListRoute = (app: FastifyInstance, db: Database.Database) => {
   app.get('/api/widgets', async () => {
-    const { weatherDefault } = loadSystem(db)
+    // A corrupt system record must not take the whole widget picker down with
+    // it; without the saved location weather simply falls back to its own
+    // location-free default.
+    let weatherDefault: WeatherDefault | null = null
+    try {
+      weatherDefault = loadSystem(db).weatherDefault
+    } catch (err) {
+      app.log.error({ err }, 'could not read the system record for weather defaults')
+    }
     const widgets = app.widgetRegistry.list().map((w) => {
       const defaultConfig = (w.defaultConfig ?? {}) as Record<string, unknown>
       // Weather keeps a location-free default in its own package; the family's

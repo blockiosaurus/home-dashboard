@@ -86,4 +86,21 @@ describe('widgets list route', () => {
     expect(widgets.find((w) => w.id === 'notes')?.defaultConfig).toEqual({ title: 'Notes' })
     await app.close()
   })
+
+  it('still lists every widget when the system record is malformed', async () => {
+    const app = await buildApp({ dataDir: dir })
+    app.db
+      .prepare(
+        `INSERT INTO kv (key, value) VALUES ('system', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run('{ not valid json')
+
+    const widgets = await listWidgets(app)
+
+    // The palette keeps working; weather just falls back to its own default.
+    expect(widgets).toHaveLength(9)
+    expect(widgets.find((w) => w.id === 'weather')?.defaultConfig).toEqual({ unit: 'fahrenheit' })
+    await app.close()
+  })
 })

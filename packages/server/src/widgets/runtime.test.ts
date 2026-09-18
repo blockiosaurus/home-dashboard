@@ -133,3 +133,66 @@ describe('startWidgetRuntime reload', () => {
     expect(runs).toEqual([])
   })
 })
+
+describe('startWidgetRuntime generation guard', () => {
+  // A backend whose run takes `delayMs` to resolve before publishing its label,
+  // so a slow run from before a reload can be made to land after a fast one.
+  const slowWidget = (): WidgetDefinition => ({
+    id: 'slow',
+    name: 'Slow',
+    defaultSize: { w: 1, h: 1 },
+    minSize: { w: 1, h: 1 },
+    configSchema: z.object({}),
+    backend: {
+      // Long enough that nothing re-ticks during the test.
+      intervalMs: 100_000,
+      run: async (ctx) => {
+        const cfg = ctx.config as { label: string; delayMs: number }
+        await new Promise((resolve) => setTimeout(resolve, cfg.delayMs))
+        ctx.publish({ label: cfg.label })
+      },
+    },
+  })
+
+  it('drops a publish from a run that was still in flight when reload replaced it', async () => {
+    const broker = createBroker()
+    const seen: unknown[] = []
+    broker.subscribe((m) => {
+      if (m.type === 'widget:data') seen.push(m.payload)
+    })
+
+    const handle = startWidgetRuntime({
+      broker,
+      widgets: [slowWidget()],
+      instances: [{ widgetId: 'slow', instanceId: 'w1', config: { label: 'old', delayMs: 5000 } }],
+    })
+    // The old run has started but has not resolved yet.
+    await vi.advanceTimersByTimeAsync(10)
+    expect(handle.cache.get('w1')).toBeUndefined()
+
+    // Reconfigure the same instance; the new run resolves immediately.
+    handle.reload([{ widgetId: 'slow', instanceId: 'w1', config: { label: 'new', delayMs: 0 } }])
+    await vi.advanceTimersByTimeAsync(10)
+    expect(handle.cache.get('w1')).toEqual({ label: 'new' })
+
+    // Now let the superseded run resolve: it must not clobber the new payload.
+    await vi.advanceTimersByTimeAsync(10_000)
+    handle.stop()
+
+    expect(handle.cache.get('w1')).toEqual({ label: 'new' })
+    expect(seen).toEqual([{ label: 'new' }])
+  })
+
+  it('drops a publish from a run still in flight when the runtime is stopped', async () => {
+    const broker = createBroker()
+    const handle = startWidgetRuntime({
+      broker,
+      widgets: [slowWidget()],
+      instances: [{ widgetId: 'slow', instanceId: 'w1', config: { label: 'old', delayMs: 5000 } }],
+    })
+    await vi.advanceTimersByTimeAsync(10)
+    handle.stop()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(handle.cache.get('w1')).toBeUndefined()
+  })
+})

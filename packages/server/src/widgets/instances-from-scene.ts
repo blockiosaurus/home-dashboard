@@ -38,7 +38,14 @@ export const collectInstances = (db: Database.Database): WidgetInstance[] => {
   const rows = db.prepare('SELECT layout_json FROM scenes ORDER BY created_at ASC').all() as Array<{
     layout_json: string
   }>
-  const { weatherDefault } = loadSystem(db)
+  // A corrupt system record costs weather widgets their default location, but
+  // it must not stop the runtime from starting (this also runs at boot).
+  let weatherDefault: WeatherDefault | null = null
+  try {
+    weatherDefault = loadSystem(db).weatherDefault
+  } catch (err) {
+    console.error('could not read the system record for weather defaults', err)
+  }
   const byInstance = new Map<string, WidgetInstance>()
   for (const row of rows) {
     let cells: LayoutCell[]

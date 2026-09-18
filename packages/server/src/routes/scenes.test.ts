@@ -1,5 +1,23 @@
+import type { ServerMessage } from '@dashboard/core'
 import { describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
+
+const scenePayload = {
+  id: 'default',
+  name: 'Active',
+  isDefault: true,
+  cells: [
+    {
+      instanceId: 'weather-new',
+      widgetId: 'weather',
+      x: 0,
+      y: 0,
+      w: 3,
+      h: 2,
+      config: { unit: 'fahrenheit' },
+    },
+  ],
+}
 
 describe('scenes routes', () => {
   it('GET /api/scenes returns seeded default scene on fresh db', async () => {
@@ -56,6 +74,41 @@ describe('scenes routes', () => {
     await new Promise((r) => setTimeout(r, 20))
 
     expect(app.widgetRuntime.cache.get('weather-new')).toEqual({ error: 'no-location' })
+    await app.close()
+  })
+
+  it('still saves and notifies the kiosk when the system record is malformed', async () => {
+    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    // collectInstances reads the system record for the weather default; a
+    // corrupt row must not turn a successful save into a 500.
+    app.db
+      .prepare(
+        `INSERT INTO kv (key, value) VALUES ('system', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run('not json at all')
+    const seen: ServerMessage[] = []
+    app.broker.subscribe((m) => seen.push(m))
+
+    const res = await app.inject({ method: 'POST', url: '/api/scenes', payload: scenePayload })
+
+    expect(res.statusCode).toBe(201)
+    expect(seen).toContainEqual({ type: 'scene:updated', sceneId: 'default' })
+    await app.close()
+  })
+
+  it('still saves and notifies the kiosk when the runtime reload throws', async () => {
+    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    app.widgetRuntime.reload = () => {
+      throw new Error('reload exploded')
+    }
+    const seen: ServerMessage[] = []
+    app.broker.subscribe((m) => seen.push(m))
+
+    const res = await app.inject({ method: 'POST', url: '/api/scenes', payload: scenePayload })
+
+    expect(res.statusCode).toBe(201)
+    expect(seen).toContainEqual({ type: 'scene:updated', sceneId: 'default' })
     await app.close()
   })
 })

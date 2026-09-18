@@ -44,11 +44,19 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
          updated_at = excluded.updated_at`,
     ).run(scene.id, scene.name, JSON.stringify(scene.cells), scene.isDefault ? 1 : 0, now, now)
     reply.code(201)
+    // Tell the kiosk first: the scene is already saved, so a failure to rebuild
+    // the widget runtime must not cost the user their scene change or turn a
+    // successful save into a 500.
+    app.broker.publish({ type: 'scene:updated', sceneId: scene.id })
     // Widget backends are keyed off the saved scenes, so a widget added (or
     // removed) in the editor only starts (or stops) producing data once the
-    // runtime is rebuilt from the new layout.
-    app.widgetRuntime.reload(collectInstances(db))
-    app.broker.publish({ type: 'scene:updated', sceneId: scene.id })
+    // runtime is rebuilt from the new layout. Worst case the widget shows no
+    // data until the next restart, which beats losing the save.
+    try {
+      app.widgetRuntime.reload(collectInstances(db))
+    } catch (err) {
+      app.log.error({ err }, 'widget runtime reload after scene save failed')
+    }
     return scene
   })
 }
