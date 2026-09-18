@@ -84,6 +84,10 @@ export const api = {
     if (!res.ok) throw new Error('person save failed')
     return res.json()
   },
+  deletePerson: async (id: string) => {
+    const res = await fetch(`/api/people/${id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) throw new Error('person delete failed')
+  },
   oauthStart: async () => {
     const res = await fetch('/api/oauth/start', { method: 'POST' })
     if (!res.ok) {
