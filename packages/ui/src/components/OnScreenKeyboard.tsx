@@ -73,7 +73,9 @@ export const OnScreenKeyboard = ({ enabled }: OnScreenKeyboardProps) => {
   // (4) is unreliable in cage/wlroots Chromium on the Pi, hence (2). It also
   // matches any phone, where the device's own keyboard is better than ours —
   // so the admin SPA passes an explicit `enabled` (see admin/src/App.tsx) and
-  // only the kiosk relies on (2)-(4).
+  // only the kiosk relies on (2)-(4). Because (1) wins, the admin reads the
+  // ?keyboard param itself and applies the same 1/0 meanings before falling
+  // back to its own localhost check.
   const detected = (() => {
     if (typeof window === 'undefined') return false
     const params = new URLSearchParams(window.location.search)

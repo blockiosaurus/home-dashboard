@@ -264,6 +264,56 @@ describe('startSyncService writes sync status per tick', () => {
     close()
   })
 
+  it("keeps a failing account's lastError when a later account in the same tick succeeds", async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const key = await deriveKey('test-machine', saltRow?.value ?? '')
+    const enc = await createEncryptor(key)
+    // Two accounts, walked in insertion order: 'a' has a calendar that fails,
+    // 'b' has none and sails through. The status write used to sit inside the
+    // account loop, so b's clean result overwrote a's error in the same tick.
+    for (const id of ['a-acct', 'b-acct']) {
+      db.raw
+        .prepare(
+          `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+           VALUES (?, 'google', '', ?, 'calendar', 0)`,
+        )
+        .run(id, enc.encrypt(`refresh-token-${id}`))
+    }
+    db.raw
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)
+         VALUES ('a-acct::c1', 'a-acct', 'c1', 'Family', NULL, 1)`,
+      )
+      .run()
+
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockResolvedValue({
+      accessToken: 'ACCESS_TOKEN',
+      expiresAt: Date.now() + 3_600_000,
+    })
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([])
+    vi.spyOn(googleClient, 'listEvents').mockRejectedValue(new Error('calendar API 500'))
+
+    const before = Date.now()
+    await sync.runNow()
+
+    const status = loadSyncStatus(db.raw)
+    expect(status.lastSyncAt as number).toBeGreaterThanOrEqual(before)
+    expect(status.lastError).toBe("1 calendar couldn't sync: calendar API 500")
+
+    sync.stop()
+    close()
+  })
+
   it('a failing tick keeps the previous lastSyncAt and records lastError', async () => {
     const { db, close } = openDatabase(dir)
     const broker = createBroker()

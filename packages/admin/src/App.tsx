@@ -13,11 +13,13 @@ const qc = new QueryClient()
  * covering the buttons, and the kiosk browser on the Pi's touchscreen, which
  * has no keyboard of its own and reaches the admin over localhost. So the
  * shared on-screen keyboard is opt-in here — `?keyboard=1` or localhost —
- * rather than following the `(pointer: coarse)` auto-detection the kiosk uses. */
+ * rather than following the `(pointer: coarse)` auto-detection the kiosk uses.
+ * `?keyboard=0` forces it off, which is what desktop dev on localhost wants. */
 const oskEnabled = (): boolean => {
   if (typeof window === 'undefined') return false
   const param = new URLSearchParams(window.location.search).get('keyboard')
   if (param === '1' || param === 'true') return true
+  if (param === '0' || param === 'false') return false
   const host = window.location.hostname
   return host === 'localhost' || host === '127.0.0.1'
 }

@@ -109,6 +109,18 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
       const accounts = opts.db
         .prepare('SELECT id, refresh_token_encrypted FROM accounts')
         .all() as Array<{ id: string; refresh_token_encrypted: string }>
+
+      // Failures are tallied across the whole tick and written once at the
+      // end. Writing per account meant a healthy second account cleared the
+      // first one's lastError back to null in the very same tick.
+      let calendarFailures = 0
+      let lastCalendarFailureMessage = ''
+      let accountFailureMessage: string | null = null
+      // True once any account has made it through its calendar loop, i.e. at
+      // least some of the cache is fresh — that, and only that, advances
+      // lastSyncAt.
+      let anyAccountSynced = false
+
       for (const acc of accounts) {
         try {
           const refreshToken = enc.decrypt(acc.refresh_token_encrypted)
@@ -127,10 +139,8 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
             )
             .all(acc.id) as Array<{ id: string; google_calendar_id: string }>
           // Per-calendar failures don't abort the account's tick, but they
-          // must still surface: without this the unconditional write below
-          // reported a clean sync while some calendars were silently stale.
-          let failures = 0
-          let lastFailureMessage = ''
+          // must still surface: without the tally below, a tick reported a
+          // clean sync while some calendars were silently stale.
           for (const c of cals) {
             try {
               const result = await syncCalendarOnce({
@@ -147,21 +157,12 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
                 opts.broker.publish({ type: 'calendar:changed' })
               }
             } catch (err) {
-              failures += 1
-              lastFailureMessage = err instanceof Error ? err.message : String(err)
+              calendarFailures += 1
+              lastCalendarFailureMessage = err instanceof Error ? err.message : String(err)
               console.error(`sync failed for calendar ${c.id}`, err)
             }
           }
-          // lastSyncAt still advances — the tick did run and the calendars
-          // that worked are up to date; lastError is what tells the user that
-          // some of them aren't.
-          writeSyncStatus(opts.db, {
-            lastSyncAt: Date.now(),
-            lastError:
-              failures === 0
-                ? null
-                : `${failures} ${failures === 1 ? "calendar couldn't" : "calendars couldn't"} sync: ${lastFailureMessage}`,
-          })
+          anyAccountSynced = true
         } catch (err) {
           if (err instanceof InvalidRefreshTokenError) {
             // Token has been revoked or superseded — most often because the user
@@ -172,10 +173,26 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
             continue
           }
           console.error(`sync failed for account ${acc.id}`, err)
-          writeSyncStatus(opts.db, {
-            lastError: err instanceof Error ? err.message : String(err),
-          })
+          accountFailureMessage = err instanceof Error ? err.message : String(err)
         }
+      }
+
+      // One write per tick. Nothing is written at all when there was nothing
+      // to do (no accounts, or every account row was a dead token we deleted),
+      // so a fresh install keeps reading as "never synced".
+      if (anyAccountSynced || accountFailureMessage !== null) {
+        const calendarSummary =
+          calendarFailures === 0
+            ? null
+            : `${calendarFailures} ${calendarFailures === 1 ? "calendar couldn't" : "calendars couldn't"} sync: ${lastCalendarFailureMessage}`
+        writeSyncStatus(opts.db, {
+          // An account that never got a token is the more serious problem, so
+          // it's the one reported when both kinds of failure happened.
+          lastError: accountFailureMessage ?? calendarSummary,
+          // Only advance the timestamp if some account actually synced; a tick
+          // where every account failed must keep the previous lastSyncAt.
+          ...(anyAccountSynced ? { lastSyncAt: Date.now() } : {}),
+        })
       }
     } finally {
       running = false
