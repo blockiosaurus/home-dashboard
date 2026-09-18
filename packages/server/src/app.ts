@@ -34,7 +34,7 @@ import { registerStatic } from './static'
 import { listLocalPhotos } from './sync/local-photos'
 import { startSceneScheduler } from './sync/scene-scheduler'
 import { startSyncService } from './sync/service'
-import { fetchWeather } from './sync/weather-client'
+import { type WeatherInput, fetchWeather } from './sync/weather-client'
 import { collectInstances } from './widgets/instances-from-scene'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
@@ -46,6 +46,9 @@ export interface AppOptions {
   googleClientId?: string
   googleClientSecret?: string
   port?: number
+  /** Overrides the open-meteo client the weather backend calls. Only tests
+   * pass this; production uses the real `fetchWeather`. */
+  fetchWeather?: (input: WeatherInput) => Promise<unknown>
 }
 
 export const buildApp = async (opts: AppOptions) => {
@@ -102,7 +105,10 @@ export const buildApp = async (opts: AppOptions) => {
   widgetRegistry.register(mealPlanDef)
   widgetRegistry.register(notesDef)
   widgetRegistry.register(packagesDef)
-  widgetRegistry.register({ ...weatherDef, backend: createWeatherBackend(fetchWeather) })
+  widgetRegistry.register({
+    ...weatherDef,
+    backend: createWeatherBackend(opts.fetchWeather ?? fetchWeather),
+  })
 
   const localPhotosDir = opts.localPhotosDir ?? './data/photos'
   widgetRegistry.register({

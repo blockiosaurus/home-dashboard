@@ -4,6 +4,17 @@ import { join } from 'node:path'
 import type { ServerMessage } from '@dashboard/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
+import type { WeatherInput } from '../sync/weather-client'
+
+/** Widget backends run off timers, so the effect of a route call lands a tick
+ * or two later — poll briefly rather than sleeping a fixed amount. */
+const waitFor = async (predicate: () => boolean, timeoutMs = 2000) => {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error('timed out waiting for condition')
+    await new Promise((r) => setTimeout(r, 10))
+  }
+}
 
 let dir: string
 beforeEach(() => {
@@ -89,6 +100,43 @@ describe('system routes', () => {
       lon: -0.1278,
       unit: 'celsius',
       label: 'London, England',
+    })
+    await app.close()
+  })
+
+  it('PUT with weatherDefault restarts the weather backend on the new location', async () => {
+    // Record what the (stubbed) open-meteo client is asked for, so we can see
+    // whether the *running* backend picked up the new coordinates — rewriting
+    // the scene cells alone would leave it fetching the seeded location.
+    const calls: WeatherInput[] = []
+    const app = await buildApp({
+      dataDir: dir,
+      fetchWeather: async (input) => {
+        calls.push(input)
+        return { current: { temperature: 12, weatherCode: 0, isDay: true, windSpeed: 3 } }
+      },
+    })
+
+    // The runtime fires each backend once at startup; wait for that seeded
+    // call so the post-PUT call below can't be confused with it.
+    await waitFor(() => calls.length > 0)
+    const seeded = calls.length
+
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/system',
+      payload: {
+        weatherDefault: { lat: 51.5074, lon: -0.1278, unit: 'celsius', label: 'London, England' },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    await waitFor(() => calls.length > seeded)
+    expect(calls.at(-1)).toMatchObject({ lat: 51.5074, lon: -0.1278, unit: 'celsius' })
+
+    await waitFor(() => app.widgetRuntime.cache.get('weather-1') !== undefined)
+    expect(app.widgetRuntime.cache.get('weather-1')).toMatchObject({
+      current: { temperature: 12 },
     })
     await app.close()
   })

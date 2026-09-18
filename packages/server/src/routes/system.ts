@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify'
 import { applyWeatherDefault } from '../scenes/apply-weather-default'
 import { buildAdminUrls } from '../system/admin-urls'
 import { SystemSchema, loadSystem, saveSystem } from '../system/store'
+import { collectInstances } from '../widgets/instances-from-scene'
 
 export const registerSystemRoutes = (
   app: FastifyInstance,
@@ -31,6 +32,16 @@ export const registerSystemRoutes = (
     // shouldn't re-apply the existing default and republish every scene.
     if ('weatherDefault' in body && merged.weatherDefault) {
       applyWeatherDefault(db, app.broker, merged.weatherDefault)
+      // The weather backend reads lat/lon from the instance config it was
+      // started with, so rewriting the cells alone leaves the running backend
+      // fetching the old city — the kiosk would show the new label over the
+      // old town's temperatures until a restart. Rebuild the runtime from the
+      // updated scenes, same as a scene save does.
+      try {
+        app.widgetRuntime.reload(collectInstances(db))
+      } catch (err) {
+        app.log.error({ err }, 'widget runtime reload after weather default change failed')
+      }
     }
     app.broker.publish({ type: 'system:updated' })
     return { ...merged, googleConfigured: deps.googleConfigured }

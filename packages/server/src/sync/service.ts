@@ -126,6 +126,11 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
               'SELECT id, google_calendar_id FROM calendars WHERE account_id = ? AND visible = 1',
             )
             .all(acc.id) as Array<{ id: string; google_calendar_id: string }>
+          // Per-calendar failures don't abort the account's tick, but they
+          // must still surface: without this the unconditional write below
+          // reported a clean sync while some calendars were silently stale.
+          let failures = 0
+          let lastFailureMessage = ''
           for (const c of cals) {
             try {
               const result = await syncCalendarOnce({
@@ -142,10 +147,21 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
                 opts.broker.publish({ type: 'calendar:changed' })
               }
             } catch (err) {
+              failures += 1
+              lastFailureMessage = err instanceof Error ? err.message : String(err)
               console.error(`sync failed for calendar ${c.id}`, err)
             }
           }
-          writeSyncStatus(opts.db, { lastSyncAt: Date.now(), lastError: null })
+          // lastSyncAt still advances — the tick did run and the calendars
+          // that worked are up to date; lastError is what tells the user that
+          // some of them aren't.
+          writeSyncStatus(opts.db, {
+            lastSyncAt: Date.now(),
+            lastError:
+              failures === 0
+                ? null
+                : `${failures} ${failures === 1 ? "calendar couldn't" : "calendars couldn't"} sync: ${lastFailureMessage}`,
+          })
         } catch (err) {
           if (err instanceof InvalidRefreshTokenError) {
             // Token has been revoked or superseded — most often because the user

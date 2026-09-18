@@ -217,6 +217,53 @@ describe('startSyncService writes sync status per tick', () => {
     close()
   })
 
+  it('a calendar whose events fail to list records lastError but still advances lastSyncAt', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const key = await deriveKey('test-machine', saltRow?.value ?? '')
+    const enc = await createEncryptor(key)
+    db.raw
+      .prepare(
+        `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+         VALUES ('acc1', 'google', '', ?, 'calendar', 0)`,
+      )
+      .run(enc.encrypt('a-refresh-token'))
+    db.raw
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)
+         VALUES ('acc1::c1', 'acc1', 'c1', 'Family', NULL, 1)`,
+      )
+      .run()
+
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockResolvedValue({
+      accessToken: 'ACCESS_TOKEN',
+      expiresAt: Date.now() + 3_600_000,
+    })
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([])
+    vi.spyOn(googleClient, 'listEvents').mockRejectedValue(new Error('calendar API 500'))
+
+    const before = Date.now()
+    await sync.runNow()
+
+    const status = loadSyncStatus(db.raw)
+    // The tick itself ran, so lastSyncAt advances; lastError is what tells
+    // the family that one of their calendars is stale.
+    expect(status.lastSyncAt as number).toBeGreaterThanOrEqual(before)
+    expect(status.lastError).toBe("1 calendar couldn't sync: calendar API 500")
+
+    sync.stop()
+    close()
+  })
+
   it('a failing tick keeps the previous lastSyncAt and records lastError', async () => {
     const { db, close } = openDatabase(dir)
     const broker = createBroker()
@@ -263,6 +310,9 @@ describe('startSyncService writes sync status per tick', () => {
       machineId: 'test-machine',
     })
     vi.restoreAllMocks()
+    // The tick logs the (expected) failure; keep the stack trace out of the
+    // test output so a real error still stands out when one appears.
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(googleAuth, 'refreshAccessToken').mockRejectedValue(new Error('network down'))
 
     await sync2.runNow()

@@ -1,9 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
+
+let dir: string
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'events-'))
+})
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true })
+})
 
 describe('events routes', () => {
   it('GET /api/events returns events within window', async () => {
-    const app = await buildApp({ dataDir: `/tmp/events-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     // No events yet — just verify shape.
     const res = await app.inject({
       method: 'GET',
@@ -15,7 +26,7 @@ describe('events routes', () => {
   })
 
   it("an event on a calendar owned by a person takes that person's color and name", async () => {
-    const app = await buildApp({ dataDir: `/tmp/events-person-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     app.db
       .prepare(
         `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)
@@ -52,7 +63,7 @@ describe('events routes', () => {
   })
 
   it('an event with no matching person has personName null and falls back to calendar/event color', async () => {
-    const app = await buildApp({ dataDir: `/tmp/events-noperson-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     app.db
       .prepare(
         `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)
@@ -83,7 +94,7 @@ describe('events routes', () => {
   })
 
   it('two people mapped to the same calendar still yield exactly one row, from the lowest id', async () => {
-    const app = await buildApp({ dataDir: `/tmp/events-shared-cal-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     app.db
       .prepare(
         `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)

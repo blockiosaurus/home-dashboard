@@ -1,6 +1,17 @@
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { ServerMessage } from '@dashboard/core'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
+
+let dir: string
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'scenes-'))
+})
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true })
+})
 
 const scenePayload = {
   id: 'default',
@@ -21,7 +32,7 @@ const scenePayload = {
 
 describe('scenes routes', () => {
   it('GET /api/scenes returns seeded default scene on fresh db', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     const res = await app.inject({ method: 'GET', url: '/api/scenes' })
     expect(res.statusCode).toBe(200)
     const body = res.json() as { scenes: Array<{ name: string; isDefault: boolean }> }
@@ -33,7 +44,7 @@ describe('scenes routes', () => {
   })
 
   it('POST /api/scenes creates and GET returns it', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     const scene = {
       id: 's1',
       name: 'Active',
@@ -48,7 +59,7 @@ describe('scenes routes', () => {
   })
 
   it('POST /api/scenes rebuilds the widget runtime so a newly added widget gets data', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     // A weather widget with no location publishes without touching the network,
     // which makes it a safe probe for "did a backend start for this instance?".
     const scene = {
@@ -78,7 +89,7 @@ describe('scenes routes', () => {
   })
 
   it('still saves and notifies the kiosk when the system record is malformed', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     // collectInstances reads the system record for the weather default; a
     // corrupt row must not turn a successful save into a 500.
     app.db
@@ -98,7 +109,7 @@ describe('scenes routes', () => {
   })
 
   it('POST /api/scenes clears is_default on other scenes when the incoming scene is default', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     const list = await app.inject({ method: 'GET', url: '/api/scenes' })
     const scenes = (
       list.json() as {
@@ -127,7 +138,7 @@ describe('scenes routes', () => {
   })
 
   it('POST /api/scenes refuses to un-default the only default scene', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     const list = await app.inject({ method: 'GET', url: '/api/scenes' })
     const scenes = (
       list.json() as {
@@ -155,7 +166,7 @@ describe('scenes routes', () => {
   })
 
   it('still saves and notifies the kiosk when the runtime reload throws', async () => {
-    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const app = await buildApp({ dataDir: dir })
     app.widgetRuntime.reload = () => {
       throw new Error('reload exploded')
     }
