@@ -2,7 +2,6 @@ import { addDays, format, startOfWeek } from 'date-fns'
 import { useEffect, useState } from 'react'
 
 export interface MealPlanConfig {
-  instanceId: string
   title?: string
 }
 
@@ -20,7 +19,14 @@ const emptyState = (): MealPlanState => ({
 
 const stateUrl = (id: string) => `/api/widgets/${id}/state`
 
-export const MealPlanView = ({ config }: { config: MealPlanConfig; data: undefined }) => {
+export const MealPlanView = ({
+  instanceId,
+  config,
+}: {
+  instanceId: string
+  config: MealPlanConfig
+  data: undefined
+}) => {
   const [state, setState] = useState<MealPlanState>(emptyState)
   const [version, setVersion] = useState(0)
   const monday = startOfWeek(new Date(), { weekStartsOn: 1 })
@@ -28,7 +34,7 @@ export const MealPlanView = ({ config }: { config: MealPlanConfig; data: undefin
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const res = await fetch(stateUrl(config.instanceId))
+      const res = await fetch(stateUrl(instanceId))
       if (res.status === 404) return
       if (!res.ok) return
       const j = (await res.json()) as { version: number; data: MealPlanState }
@@ -40,7 +46,7 @@ export const MealPlanView = ({ config }: { config: MealPlanConfig; data: undefin
     return () => {
       cancelled = true
     }
-  }, [config.instanceId])
+  }, [instanceId])
 
   const update = async (key: WeekKey, value: string) => {
     const next: MealPlanState = { meals: { ...state.meals, [key]: value } }
@@ -50,7 +56,7 @@ export const MealPlanView = ({ config }: { config: MealPlanConfig; data: undefin
       data: next,
     }
     if (version > 0) body.expectedVersion = version
-    const res = await fetch(stateUrl(config.instanceId), {
+    const res = await fetch(stateUrl(instanceId), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),

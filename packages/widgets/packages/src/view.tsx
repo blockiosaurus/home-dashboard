@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 export interface PackagesConfig {
-  instanceId: string
   title?: string
 }
 
@@ -23,7 +22,14 @@ const newId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
-export const PackagesView = ({ config }: { config: PackagesConfig; data: undefined }) => {
+export const PackagesView = ({
+  instanceId,
+  config,
+}: {
+  instanceId: string
+  config: PackagesConfig
+  data: undefined
+}) => {
   const [state, setState] = useState<PackagesState>({ items: [] })
   const [version, setVersion] = useState(0)
   const [label, setLabel] = useState('')
@@ -32,7 +38,7 @@ export const PackagesView = ({ config }: { config: PackagesConfig; data: undefin
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const res = await fetch(stateUrl(config.instanceId))
+      const res = await fetch(stateUrl(instanceId))
       if (res.status === 404) return
       if (!res.ok) return
       const j = (await res.json()) as { version: number; data: PackagesState }
@@ -44,7 +50,7 @@ export const PackagesView = ({ config }: { config: PackagesConfig; data: undefin
     return () => {
       cancelled = true
     }
-  }, [config.instanceId])
+  }, [instanceId])
 
   const persist = async (next: PackagesState) => {
     setState(next)
@@ -53,7 +59,7 @@ export const PackagesView = ({ config }: { config: PackagesConfig; data: undefin
       data: next,
     }
     if (version > 0) body.expectedVersion = version
-    const res = await fetch(stateUrl(config.instanceId), {
+    const res = await fetch(stateUrl(instanceId), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),

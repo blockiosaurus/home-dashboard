@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
 export interface NotesConfig {
-  instanceId: string
   title?: string
 }
 
@@ -11,7 +10,14 @@ interface NotesState {
 
 const stateUrl = (id: string) => `/api/widgets/${id}/state`
 
-export const NotesView = ({ config }: { config: NotesConfig; data: undefined }) => {
+export const NotesView = ({
+  instanceId,
+  config,
+}: {
+  instanceId: string
+  config: NotesConfig
+  data: undefined
+}) => {
   const [text, setText] = useState('')
   const [version, setVersion] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -19,7 +25,7 @@ export const NotesView = ({ config }: { config: NotesConfig; data: undefined }) 
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const res = await fetch(stateUrl(config.instanceId))
+      const res = await fetch(stateUrl(instanceId))
       if (res.status === 404) return
       if (!res.ok) return
       const j = (await res.json()) as { version: number; data: NotesState }
@@ -32,7 +38,7 @@ export const NotesView = ({ config }: { config: NotesConfig; data: undefined }) 
       cancelled = true
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [config.instanceId])
+  }, [instanceId])
 
   const schedule = (next: string) => {
     if (timer.current) clearTimeout(timer.current)
@@ -45,7 +51,7 @@ export const NotesView = ({ config }: { config: NotesConfig; data: undefined }) 
       data: { text: next },
     }
     if (version > 0) body.expectedVersion = version
-    const res = await fetch(stateUrl(config.instanceId), {
+    const res = await fetch(stateUrl(instanceId), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),

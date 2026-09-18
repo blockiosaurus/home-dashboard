@@ -22,8 +22,12 @@ export interface WidgetBackend {
 export interface WidgetDefinition<TConfig = unknown, TData = unknown> {
   id: string
   name: string
+  /** One short plain-English line shown next to the name in the widget picker. */
+  description?: string
   defaultSize: WidgetSize
   minSize: WidgetSize
   configSchema: import('zod').ZodType<TConfig>
+  /** Config a freshly added instance starts with, so widgets work without editing JSON. */
+  defaultConfig?: TConfig
   backend?: WidgetBackend
 }
