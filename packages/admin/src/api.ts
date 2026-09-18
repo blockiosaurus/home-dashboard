@@ -81,9 +81,14 @@ export const api = {
   getPeople: async () => {
     const res = await fetch('/api/people')
     if (!res.ok) throw new Error('people fetch failed')
-    return res.json() as Promise<{ people: Array<{ id: string; name: string; color: string }> }>
+    return res.json() as Promise<{
+      people: Array<{ id: string; name: string; color: string; primaryCalendarId: string | null }>
+    }>
   },
-  putPerson: async (id: string, body: { name: string; color: string }) => {
+  putPerson: async (
+    id: string,
+    body: { name: string; color: string; primaryCalendarId?: string | null },
+  ) => {
     const res = await fetch(`/api/people/${id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },

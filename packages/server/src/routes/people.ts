@@ -6,7 +6,7 @@ const PersonBody = z.object({
   name: z.string().min(1),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   avatarUrl: z.string().url().optional(),
-  primaryCalendarId: z.string().optional(),
+  primaryCalendarId: z.string().nullable().optional(),
 })
 
 export const registerPeopleRoutes = (app: FastifyInstance, db: Database.Database) => {

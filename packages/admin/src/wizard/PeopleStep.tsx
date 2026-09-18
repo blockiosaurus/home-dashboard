@@ -1,9 +1,9 @@
-import { Input } from '@dashboard/ui'
+import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { api } from '../api'
+import { PersonRow } from '../components/PersonRow'
 import { WizardCard, WizardFooter } from './WizardCard'
 import type { PersonDraft } from './state'
-
-const COLORS = ['#ff7eb6', '#5b6cff', '#ffb13b', '#36c47a']
 
 export const PeopleStep = ({
   people,
@@ -15,6 +15,9 @@ export const PeopleStep = ({
   onContinue: (next: PersonDraft[]) => void
 }) => {
   const [draft, setDraft] = useState(people)
+  const { data } = useQuery({ queryKey: ['calendars'], queryFn: api.getCalendars })
+  const calendars = data?.calendars ?? []
+
   return (
     <WizardCard
       title="Family members"
@@ -23,33 +26,17 @@ export const PeopleStep = ({
     >
       <div className="mt-4 space-y-3">
         {draft.map((p, idx) => (
-          <div key={p.id} className="flex items-center gap-3">
-            <span className="inline-block h-8 w-8 rounded-full" style={{ background: p.color }} />
-            <Input
-              value={p.name}
-              placeholder={`Person ${idx + 1}`}
-              onChange={(e) => {
-                const next = [...draft]
-                next[idx] = { ...p, name: e.target.value }
-                setDraft(next)
-              }}
-            />
-            <select
-              value={p.color}
-              onChange={(e) => {
-                const next = [...draft]
-                next[idx] = { ...p, color: e.target.value }
-                setDraft(next)
-              }}
-              className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-2 py-2 text-sm"
-            >
-              {COLORS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
+          <PersonRow
+            key={p.id}
+            value={p}
+            index={idx}
+            calendars={calendars}
+            onChange={(next) => {
+              const updated = [...draft]
+              updated[idx] = next
+              setDraft(updated)
+            }}
+          />
         ))}
       </div>
     </WizardCard>

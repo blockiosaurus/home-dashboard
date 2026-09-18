@@ -15,6 +15,7 @@ export interface PersonDraft {
   id: string
   name: string
   color: string
+  primaryCalendarId: string | null
 }
 
 export interface WeatherDraft {
@@ -39,10 +40,10 @@ export interface WizardState {
 const STORAGE_KEY = 'dashboard.wizard'
 
 const DEFAULT_PEOPLE: PersonDraft[] = [
-  { id: 'p1', name: '', color: '#ff7eb6' },
-  { id: 'p2', name: '', color: '#5b6cff' },
-  { id: 'p3', name: '', color: '#ffb13b' },
-  { id: 'p4', name: '', color: '#36c47a' },
+  { id: 'p1', name: '', color: '#ff7eb6', primaryCalendarId: null },
+  { id: 'p2', name: '', color: '#5b6cff', primaryCalendarId: null },
+  { id: 'p3', name: '', color: '#ffb13b', primaryCalendarId: null },
+  { id: 'p4', name: '', color: '#36c47a', primaryCalendarId: null },
 ]
 
 const DEFAULT_WEATHER: WeatherDraft = {
@@ -61,7 +62,12 @@ export const createInitialWizardState = (): WizardState => ({
 const isPersonDraft = (value: unknown): value is PersonDraft => {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
-  return typeof v.id === 'string' && typeof v.name === 'string' && typeof v.color === 'string'
+  return (
+    typeof v.id === 'string' &&
+    typeof v.name === 'string' &&
+    typeof v.color === 'string' &&
+    (v.primaryCalendarId === null || typeof v.primaryCalendarId === 'string')
+  )
 }
 
 const isLocationValue = (value: unknown): value is LocationValue => {
@@ -134,7 +140,11 @@ export const finishWizard = async (draft: WizardDraft) => {
   for (const person of draft.people) {
     const name = person.name.trim()
     if (name.length > 0) {
-      await api.putPerson(person.id, { name, color: person.color })
+      await api.putPerson(person.id, {
+        name,
+        color: person.color,
+        primaryCalendarId: person.primaryCalendarId,
+      })
     } else if (FIXED_PERSON_IDS.has(person.id)) {
       // A cleared name on one of the four fixed slots removes that person on
       // re-run instead of leaving a stale record with an empty name.
