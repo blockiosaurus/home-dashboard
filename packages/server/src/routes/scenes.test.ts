@@ -97,6 +97,63 @@ describe('scenes routes', () => {
     await app.close()
   })
 
+  it('POST /api/scenes clears is_default on other scenes when the incoming scene is default', async () => {
+    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const list = await app.inject({ method: 'GET', url: '/api/scenes' })
+    const scenes = (
+      list.json() as {
+        scenes: Array<{ id: string; name: string; isDefault: boolean; cells: unknown[] }>
+      }
+    ).scenes
+    const original = scenes.find((s) => s.isDefault)
+    const other = scenes.find((s) => !s.isDefault)
+    expect(original).toBeDefined()
+    expect(other).toBeDefined()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/scenes',
+      payload: { id: other?.id, name: other?.name, isDefault: true, cells: other?.cells },
+    })
+    expect(res.statusCode).toBe(201)
+    expect((res.json() as { isDefault: boolean }).isDefault).toBe(true)
+
+    const list2 = await app.inject({ method: 'GET', url: '/api/scenes' })
+    const scenes2 = (list2.json() as { scenes: Array<{ id: string; isDefault: boolean }> }).scenes
+    expect(scenes2.find((s) => s.id === other?.id)?.isDefault).toBe(true)
+    expect(scenes2.find((s) => s.id === original?.id)?.isDefault).toBe(false)
+    expect(scenes2.filter((s) => s.isDefault)).toHaveLength(1)
+    await app.close()
+  })
+
+  it('POST /api/scenes refuses to un-default the only default scene', async () => {
+    const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
+    const list = await app.inject({ method: 'GET', url: '/api/scenes' })
+    const scenes = (
+      list.json() as {
+        scenes: Array<{ id: string; name: string; isDefault: boolean; cells: unknown[] }>
+      }
+    ).scenes
+    const def = scenes.find((s) => s.isDefault)
+    expect(def).toBeDefined()
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/scenes',
+      payload: { id: def?.id, name: def?.name, isDefault: false, cells: def?.cells },
+    })
+    expect(res.statusCode).toBe(201)
+    // The server keeps the only default scene default and reports that back,
+    // rather than silently ignoring the request or leaving no default at all.
+    expect((res.json() as { isDefault: boolean }).isDefault).toBe(true)
+
+    const list2 = await app.inject({ method: 'GET', url: '/api/scenes' })
+    const scenes2 = (list2.json() as { scenes: Array<{ id: string; isDefault: boolean }> }).scenes
+    expect(scenes2.filter((s) => s.isDefault)).toHaveLength(1)
+    expect(scenes2.find((s) => s.id === def?.id)?.isDefault).toBe(true)
+    await app.close()
+  })
+
   it('still saves and notifies the kiosk when the runtime reload throws', async () => {
     const app = await buildApp({ dataDir: `/tmp/scenes-${Date.now()}` })
     app.widgetRuntime.reload = () => {

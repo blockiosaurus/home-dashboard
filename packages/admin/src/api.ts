@@ -57,7 +57,10 @@ export const api = {
         body.error ? `${body.error}${details ? ` — ${details}` : ''}` : 'scene save failed',
       )
     }
-    return res.json()
+    // The server has the final say on `isDefault` — it refuses to un-default
+    // the only default scene — so callers should apply this response back
+    // onto their draft instead of trusting what they sent.
+    return res.json() as Promise<{ id: string; name: string; isDefault: boolean; cells: unknown[] }>
   },
   getWidgets: async () => {
     const res = await fetch('/api/widgets')

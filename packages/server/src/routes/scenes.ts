@@ -34,15 +34,42 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
       throw err
     }
     const now = Date.now()
-    db.prepare(
-      `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         name = excluded.name,
-         layout_json = excluded.layout_json,
-         is_default = excluded.is_default,
-         updated_at = excluded.updated_at`,
-    ).run(scene.id, scene.name, JSON.stringify(scene.cells), scene.isDefault ? 1 : 0, now, now)
+
+    // Upsert plus the is_default bookkeeping run as one transaction so a
+    // save never leaves the table with two defaults (or, via the guard
+    // below, zero).
+    const upsert = db.transaction((s: Scene): boolean => {
+      let isDefault = s.isDefault
+      if (!isDefault) {
+        // Refuse to un-default the only default scene — the kiosk and the
+        // scene scheduler both need exactly one default to fall back to.
+        const current = db.prepare('SELECT is_default FROM scenes WHERE id = ?').get(s.id) as
+          | { is_default: number }
+          | undefined
+        if (current?.is_default === 1) {
+          const { n } = db
+            .prepare('SELECT COUNT(*) as n FROM scenes WHERE is_default = 1')
+            .get() as { n: number }
+          if (n <= 1) isDefault = true
+        }
+      }
+      if (isDefault) {
+        db.prepare('UPDATE scenes SET is_default = 0 WHERE id != ?').run(s.id)
+      }
+      db.prepare(
+        `INSERT INTO scenes (id, name, layout_json, is_default, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           layout_json = excluded.layout_json,
+           is_default = excluded.is_default,
+           updated_at = excluded.updated_at`,
+      ).run(s.id, s.name, JSON.stringify(s.cells), isDefault ? 1 : 0, now, now)
+      return isDefault
+    })
+    const savedIsDefault = upsert(scene)
+    const savedScene: Scene = { ...scene, isDefault: savedIsDefault }
+
     reply.code(201)
     // Tell the kiosk first: the scene is already saved, so a failure to rebuild
     // the widget runtime must not cost the user their scene change or turn a
@@ -57,6 +84,6 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
     } catch (err) {
       app.log.error({ err }, 'widget runtime reload after scene save failed')
     }
-    return scene
+    return savedScene
   })
 }
