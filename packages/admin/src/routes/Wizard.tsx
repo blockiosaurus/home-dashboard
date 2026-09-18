@@ -1,6 +1,6 @@
 import { Button, Card, Input } from '@dashboard/ui'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { QRCodeSVG } from 'qrcode.react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
@@ -9,10 +9,6 @@ type Step = 'oauth' | 'people' | 'weather' | 'album' | 'done'
 
 interface WizardState {
   step: Step
-  deviceCode: string | null
-  userCode: string | null
-  verificationUrl: string | null
-  oauthStatus: 'idle' | 'pending' | 'ok' | 'denied' | 'expired'
   people: Array<{ id: string; name: string; color: string }>
   weather: { lat: number; lon: number; unit: 'celsius' | 'fahrenheit'; label: string }
   albumId: string | null
@@ -20,10 +16,6 @@ interface WizardState {
 
 const initial: WizardState = {
   step: 'oauth',
-  deviceCode: null,
-  userCode: null,
-  verificationUrl: null,
-  oauthStatus: 'idle',
   people: [
     { id: 'p1', name: '', color: '#ff7eb6' },
     { id: 'p2', name: '', color: '#5b6cff' },
@@ -38,90 +30,8 @@ export const Wizard = () => {
   const navigate = useNavigate()
   const [state, setState] = useState<WizardState>(initial)
 
-  const start = useMutation({
-    mutationFn: api.oauthStart,
-    onSuccess: (res) =>
-      setState((s) => ({
-        ...s,
-        deviceCode: res.deviceCode,
-        userCode: res.userCode,
-        verificationUrl: res.verificationUrl,
-        oauthStatus: 'pending',
-      })),
-  })
-
-  useEffect(() => {
-    if (state.oauthStatus !== 'pending' || !state.deviceCode) return
-    const id = setInterval(async () => {
-      const res = await api.oauthPoll(state.deviceCode as string)
-      if (res.status === 'ok') {
-        setState((s) => ({ ...s, oauthStatus: 'ok', step: 'people' }))
-        clearInterval(id)
-      } else if (res.status === 'denied' || res.status === 'expired') {
-        setState((s) => ({ ...s, oauthStatus: res.status }))
-        clearInterval(id)
-      }
-    }, 5000)
-    return () => clearInterval(id)
-  }, [state.oauthStatus, state.deviceCode])
-
   if (state.step === 'oauth') {
-    return (
-      <div className="flex h-full items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <h1 className="text-2xl font-bold">Connect Google</h1>
-          <p className="mt-2 text-sm text-[var(--text-dim)]">
-            We use Google Calendar (read + write) and Google Photos (read) so the dashboard can show
-            events and a slideshow.
-          </p>
-          {state.oauthStatus === 'idle' ? (
-            <>
-              <Button
-                className="mt-4 w-full"
-                onClick={() => start.mutate()}
-                disabled={start.isPending}
-              >
-                {start.isPending ? 'Starting…' : 'Start'}
-              </Button>
-              {start.isError ? (
-                <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
-                  {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
-                  <br />
-                  <span className="text-xs text-red-600">
-                    Make sure <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>{' '}
-                    are set in the server environment, then restart the dashboard service.
-                  </span>
-                </p>
-              ) : null}
-            </>
-          ) : state.oauthStatus === 'pending' ? (
-            <div className="mt-4 space-y-2">
-              <p>1. On any device, visit:</p>
-              <a
-                className="block break-all rounded-lg bg-gray-100 p-2 text-sm font-mono"
-                href={state.verificationUrl ?? '#'}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {state.verificationUrl}
-              </a>
-              <p>2. Enter this code:</p>
-              <div className="rounded-lg bg-[var(--accent)] p-3 text-center text-2xl font-bold tracking-widest text-white">
-                {state.userCode}
-              </div>
-              <p className="text-xs text-[var(--text-dim)]">Waiting for Google…</p>
-            </div>
-          ) : (
-            <p className="mt-4 text-sm text-red-500">
-              OAuth {state.oauthStatus}.{' '}
-              <button type="button" onClick={() => start.mutate()}>
-                Retry
-              </button>
-            </p>
-          )}
-        </Card>
-      </div>
-    )
+    return <ConnectStep onDone={() => setState((s) => ({ ...s, step: 'people' }))} />
   }
 
   // Subsequent steps land in Tasks 12.
@@ -144,6 +54,202 @@ export const Wizard = () => {
 
   // step === 'done'
   return <DoneStep state={state} onComplete={() => navigate('/editor')} />
+}
+
+const ConnectShell = ({ children }: { children: ReactNode }) => (
+  <div className="flex h-full items-center justify-center p-6">
+    <Card className="w-full max-w-md">
+      <h1 className="text-2xl font-bold">Connect Google</h1>
+      {children}
+    </Card>
+  </div>
+)
+
+const SkipForNow = ({ onSkip }: { onSkip: () => void }) => (
+  <button
+    type="button"
+    onClick={onSkip}
+    className="mt-3 w-full py-2 text-center text-sm text-[var(--text-dim)] underline decoration-dotted"
+  >
+    Skip for now — you can connect a calendar later from Settings
+  </button>
+)
+
+type ConnectPhase = 'idle' | 'pending' | 'denied' | 'expired'
+
+interface DeviceFlow {
+  deviceCode: string
+  userCode: string
+  verificationUrl: string
+  intervalSeconds: number
+}
+
+const ConnectStep = ({ onDone }: { onDone: () => void }) => {
+  const queryClient = useQueryClient()
+  const system = useQuery({ queryKey: ['system'], queryFn: api.getSystem })
+  const accounts = useQuery({ queryKey: ['accounts'], queryFn: api.getAccounts })
+
+  const [phase, setPhase] = useState<ConnectPhase>('idle')
+  const [flow, setFlow] = useState<DeviceFlow | null>(null)
+
+  const start = useMutation({
+    mutationFn: api.oauthStart,
+    onSuccess: (res) => {
+      setFlow({
+        deviceCode: res.deviceCode,
+        userCode: res.userCode,
+        verificationUrl: res.verificationUrl,
+        intervalSeconds: res.intervalSeconds,
+      })
+      setPhase('pending')
+    },
+  })
+
+  useEffect(() => {
+    if (phase !== 'pending' || !flow) return
+    const ms = Math.max(flow.intervalSeconds * 1000, 5000)
+    const id = setInterval(async () => {
+      const res = await api.oauthPoll(flow.deviceCode)
+      if (res.status === 'ok') {
+        clearInterval(id)
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        onDone()
+      } else if (res.status === 'denied' || res.status === 'expired') {
+        clearInterval(id)
+        setPhase(res.status)
+      }
+    }, ms)
+    return () => clearInterval(id)
+  }, [phase, flow, queryClient, onDone])
+
+  const cancel = () => {
+    setFlow(null)
+    setPhase('idle')
+  }
+
+  if (!system.data || !accounts.data) {
+    return (
+      <ConnectShell>
+        <p className="mt-2 text-sm text-[var(--text-dim)]">Loading…</p>
+      </ConnectShell>
+    )
+  }
+
+  const connected = accounts.data.accounts.length > 0
+
+  if (connected && phase === 'idle') {
+    return (
+      <ConnectShell>
+        <p className="mt-2 text-sm text-[var(--text-dim)]">Google Calendar is connected.</p>
+        <Button className="mt-4 w-full" onClick={onDone}>
+          Continue
+        </Button>
+        <Button
+          variant="secondary"
+          className="mt-2 w-full"
+          onClick={() => start.mutate()}
+          disabled={start.isPending}
+        >
+          {start.isPending ? 'Starting…' : 'Connect a different account'}
+        </Button>
+        {start.isError ? (
+          <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
+          </p>
+        ) : null}
+        <SkipForNow onSkip={onDone} />
+      </ConnectShell>
+    )
+  }
+
+  if (!system.data.googleConfigured && phase === 'idle') {
+    return (
+      <ConnectShell>
+        <p className="mt-2 text-sm text-[var(--text-dim)]">
+          We use Google Calendar so the dashboard can show your family's events and let you add new
+          ones from the touchscreen.
+        </p>
+        <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          <p>This dashboard's server doesn't have Google credentials yet. To add them:</p>
+          <code className="mt-2 block rounded-lg bg-white p-2 font-mono text-xs">
+            sudo nano /etc/dashboard/env
+          </code>
+          <code className="mt-2 block rounded-lg bg-white p-2 font-mono text-xs">
+            sudo systemctl restart dashboard
+          </code>
+        </div>
+        <Button
+          variant="secondary"
+          className="mt-4 w-full"
+          onClick={() => system.refetch()}
+          disabled={system.isFetching}
+        >
+          {system.isFetching ? 'Checking…' : 'Check again'}
+        </Button>
+        <SkipForNow onSkip={onDone} />
+      </ConnectShell>
+    )
+  }
+
+  if (phase === 'idle') {
+    return (
+      <ConnectShell>
+        <p className="mt-2 text-sm text-[var(--text-dim)]">
+          We use Google Calendar so the dashboard can show your family's events and let you add new
+          ones from the touchscreen.
+        </p>
+        <Button className="mt-4 w-full" onClick={() => start.mutate()} disabled={start.isPending}>
+          {start.isPending ? 'Starting…' : 'Start'}
+        </Button>
+        {start.isError ? (
+          <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
+          </p>
+        ) : null}
+        <SkipForNow onSkip={onDone} />
+      </ConnectShell>
+    )
+  }
+
+  if (phase === 'pending' && flow) {
+    return (
+      <ConnectShell>
+        <div className="mt-4 space-y-2">
+          <p>1. On any device, visit:</p>
+          <a
+            className="block break-all rounded-lg bg-gray-100 p-2 text-sm font-mono"
+            href={flow.verificationUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            {flow.verificationUrl}
+          </a>
+          <p>2. Enter this code:</p>
+          <div className="rounded-lg bg-[var(--accent)] p-4 text-center text-3xl font-bold tracking-widest text-white">
+            {flow.userCode}
+          </div>
+          <p className="text-xs text-[var(--text-dim)]">Waiting for Google…</p>
+        </div>
+        <Button variant="secondary" className="mt-4 w-full" onClick={cancel}>
+          Cancel
+        </Button>
+        <SkipForNow onSkip={onDone} />
+      </ConnectShell>
+    )
+  }
+
+  // phase === 'denied' | 'expired'
+  return (
+    <ConnectShell>
+      <p className="mt-4 text-sm text-red-500">
+        {phase === 'denied' ? 'Google sign-in was denied.' : 'That code expired.'}
+      </p>
+      <Button className="mt-4 w-full" onClick={() => start.mutate()} disabled={start.isPending}>
+        {start.isPending ? 'Starting…' : 'Retry'}
+      </Button>
+      <SkipForNow onSkip={onDone} />
+    </ConnectShell>
+  )
 }
 
 const COLORS = ['#ff7eb6', '#5b6cff', '#ffb13b', '#36c47a']
@@ -302,21 +408,28 @@ const DoneStep = ({
   state: WizardState
   onComplete: () => void
 }) => {
+  const queryClient = useQueryClient()
   const save = useMutation({
     mutationFn: async () => {
       for (const person of state.people.filter((p) => p.name.trim().length > 0)) {
         await api.putPerson(person.id, { name: person.name, color: person.color })
       }
-      await api.putSystem({
+      return api.putSystem({
         firstRunComplete: true,
         weatherDefault: state.weather,
         // ambient device id is persisted server-side under accounts.ambient_device_id
         // by the wizard's AlbumStep — nothing for us to forward here.
       })
     },
-    onSuccess: onComplete,
+    onSuccess: (result) => {
+      // Seed the cache with fresh data before navigating so Shell's redirect
+      // check (`system.firstRunComplete`) doesn't fire on the stale
+      // pre-wizard value and bounce us straight back to /wizard.
+      queryClient.setQueryData(['system'], result)
+      queryClient.invalidateQueries({ queryKey: ['system'] })
+      onComplete()
+    },
   })
-  useQuery({ queryKey: ['system'], queryFn: api.getSystem }) // warm cache
   return (
     <div className="flex h-full items-center justify-center p-6">
       <Card className="w-full max-w-md text-center">

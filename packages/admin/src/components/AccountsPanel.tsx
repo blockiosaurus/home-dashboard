@@ -2,22 +2,11 @@ import { Button, Card } from '@dashboard/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
 
-interface Account {
-  id: string
-  email: string
-  provider: string
-  created_at: number
-}
-
 export const AccountsPanel = () => {
   const qc = useQueryClient()
   const { data } = useQuery({
     queryKey: ['accounts'],
-    queryFn: async () => {
-      const res = await fetch('/api/accounts')
-      if (!res.ok) throw new Error('accounts fetch failed')
-      return res.json() as Promise<{ accounts: Account[] }>
-    },
+    queryFn: api.getAccounts,
   })
   const disconnect = useMutation({
     mutationFn: api.deleteAccount,

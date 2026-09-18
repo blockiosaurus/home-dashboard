@@ -34,13 +34,22 @@ const saveSystem = (db: Database.Database, next: System) => {
   ).run(JSON.stringify(next))
 }
 
-export const registerSystemRoutes = (app: FastifyInstance, db: Database.Database) => {
-  app.get('/api/system', async () => loadSystem(db))
+export const registerSystemRoutes = (
+  app: FastifyInstance,
+  db: Database.Database,
+  deps: { googleConfigured: boolean },
+) => {
+  app.get('/api/system', async () => ({
+    ...loadSystem(db),
+    googleConfigured: deps.googleConfigured,
+  }))
 
   app.put('/api/system', async (req) => {
     const current = loadSystem(db)
+    // googleConfigured is derived from server config, not client-settable; SystemSchema
+    // doesn't include it in its shape so zod strips it from the merged body automatically.
     const merged = SystemSchema.parse({ ...current, ...(req.body as Record<string, unknown>) })
     saveSystem(db, merged)
-    return merged
+    return { ...merged, googleConfigured: deps.googleConfigured }
   })
 }

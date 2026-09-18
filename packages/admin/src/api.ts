@@ -1,3 +1,23 @@
+export interface SystemState {
+  firstRunComplete: boolean
+  manualScene: string | null
+  weatherDefault: {
+    lat: number
+    lon: number
+    unit: 'celsius' | 'fahrenheit'
+    label?: string
+  } | null
+  photosAlbumId: string | null
+  googleConfigured: boolean
+}
+
+export interface Account {
+  id: string
+  email: string
+  provider: string
+  created_at: number
+}
+
 export const api = {
   getScenes: async () => {
     const res = await fetch('/api/scenes')
@@ -39,17 +59,7 @@ export const api = {
   getSystem: async () => {
     const res = await fetch('/api/system')
     if (!res.ok) throw new Error('system fetch failed')
-    return res.json() as Promise<{
-      firstRunComplete: boolean
-      manualScene: string | null
-      weatherDefault: {
-        lat: number
-        lon: number
-        unit: 'celsius' | 'fahrenheit'
-        label?: string
-      } | null
-      photosAlbumId: string | null
-    }>
+    return res.json() as Promise<SystemState>
   },
   putSystem: async (patch: Record<string, unknown>) => {
     const res = await fetch('/api/system', {
@@ -58,7 +68,7 @@ export const api = {
       body: JSON.stringify(patch),
     })
     if (!res.ok) throw new Error('system save failed')
-    return res.json()
+    return res.json() as Promise<SystemState>
   },
   getPeople: async () => {
     const res = await fetch('/api/people')
@@ -80,7 +90,12 @@ export const api = {
       const body = (await res.json().catch(() => ({}))) as { error?: string }
       throw new Error(body.error ?? `oauth start failed (${res.status})`)
     }
-    return res.json() as Promise<{ userCode: string; verificationUrl: string; deviceCode: string }>
+    return res.json() as Promise<{
+      userCode: string
+      verificationUrl: string
+      deviceCode: string
+      intervalSeconds: number
+    }>
   },
   oauthPoll: async (deviceCode: string) => {
     const res = await fetch('/api/oauth/poll', {
@@ -148,6 +163,11 @@ export const api = {
   deleteScheduleRule: async (id: string) => {
     const res = await fetch(`/api/scene-schedule/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('schedule delete failed')
+  },
+  getAccounts: async () => {
+    const res = await fetch('/api/accounts')
+    if (!res.ok) throw new Error('accounts fetch failed')
+    return res.json() as Promise<{ accounts: Account[] }>
   },
   deleteAccount: async (id: string) => {
     const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' })

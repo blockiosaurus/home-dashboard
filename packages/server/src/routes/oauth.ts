@@ -28,6 +28,7 @@ export const registerOauthRoutes = (
         verificationUrl: flow.verificationUrl,
         expiresAt: flow.expiresAt,
         deviceCode: flow.deviceCode,
+        intervalSeconds: flow.intervalSeconds,
       }
     } catch (err) {
       app.log.error({ err }, 'device flow start failed')

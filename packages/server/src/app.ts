@@ -157,7 +157,9 @@ export const buildApp = async (opts: AppOptions) => {
   registerAccountsWriteRoutes(app, db.raw, { machineId })
   registerWidgetsListRoute(app)
   registerPeopleRoutes(app, db.raw)
-  registerSystemRoutes(app, db.raw)
+  registerSystemRoutes(app, db.raw, {
+    googleConfigured: Boolean(opts.googleClientId && opts.googleClientSecret),
+  })
   registerSceneScheduleRoutes(app, db.raw)
   registerPhotosRoutes(app, { localPhotosDir })
   registerPhotosAmbientRoutes(app, db.raw, { getAccessToken })

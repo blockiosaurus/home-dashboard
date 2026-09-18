@@ -10,7 +10,11 @@ const qc = new QueryClient()
 
 const Shell = () => {
   const { data: system } = useQuery({ queryKey: ['system'], queryFn: api.getSystem })
-  if (system && !system.firstRunComplete) return <Navigate to="/wizard" replace />
+  // Wait for a fresh read before deciding: the wizard's Finish step seeds this
+  // query's cache before navigating, so an unset cache here means we haven't
+  // seen the real value yet, not that firstRunComplete is false.
+  if (!system) return null
+  if (!system.firstRunComplete) return <Navigate to="/wizard" replace />
 
   return (
     <div className="flex h-full">

@@ -32,4 +32,33 @@ describe('system routes', () => {
     expect(res.json()).toMatchObject({ firstRunComplete: true, manualScene: 'sleep' })
     await app.close()
   })
+
+  it('GET reports googleConfigured: false when no Google credentials are set', async () => {
+    const app = await buildApp({ dataDir: dir })
+    const res = await app.inject({ method: 'GET', url: '/api/system' })
+    expect(res.json()).toMatchObject({ googleConfigured: false })
+    await app.close()
+  })
+
+  it('GET reports googleConfigured: true when both Google credentials are set', async () => {
+    const app = await buildApp({
+      dataDir: dir,
+      googleClientId: 'client-id',
+      googleClientSecret: 'client-secret',
+    })
+    const res = await app.inject({ method: 'GET', url: '/api/system' })
+    expect(res.json()).toMatchObject({ googleConfigured: true })
+    await app.close()
+  })
+
+  it('PUT ignores a client-supplied googleConfigured value', async () => {
+    const app = await buildApp({ dataDir: dir })
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/system',
+      payload: { firstRunComplete: true, googleConfigured: true },
+    })
+    expect(res.json()).toMatchObject({ googleConfigured: false })
+    await app.close()
+  })
 })
