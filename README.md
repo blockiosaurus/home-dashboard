@@ -28,50 +28,67 @@ After flashing Raspberry Pi OS Bookworm and getting a shell on the Pi:
    ```bash
    sudo install -d -o pi -g pi /opt
    sudo chown pi:pi /opt
-   git clone https://github.com/YOU/dashboard.git /opt/dashboard
+   git clone https://github.com/blockiosaurus/home-dashboard.git /opt/dashboard
    cd /opt/dashboard
    ```
 
-2. Run the one-shot installer:
+2. Run the one-shot installer with your Google OAuth credentials:
 
    ```bash
-   sudo scripts/install.sh --repo-dir /opt/dashboard --yes
-   ```
-
-   It installs apt deps (avahi, cage, chromium, build tools), Node 22 via
-   NodeSource, pnpm via corepack, creates a `dashboard` system user with
-   `/var/lib/dashboard` as the data directory, builds the monorepo, installs
-   `dashboard.service` (Node server) + `cage.service` (Wayland kiosk), and
-   advertises `dashboard.local` via Avahi.
-
-3. Paste your Google OAuth credentials:
-
-   ```bash
-   sudo nano /etc/dashboard/env
-   # GOOGLE_CLIENT_ID=...apps.googleusercontent.com
-   # GOOGLE_CLIENT_SECRET=...
-   sudo systemctl restart dashboard
+   sudo scripts/install.sh --repo-dir /opt/dashboard --yes \
+     --google-client-id YOUR_ID.apps.googleusercontent.com \
+     --google-client-secret YOUR_SECRET
    ```
 
    The Google OAuth client must be of type **"TVs and Limited Input devices"**
    (not Web). Enable the **Google Calendar API** in the same Cloud project at
    <https://console.cloud.google.com/apis/library/calendar-json.googleapis.com>.
+   Don't have credentials yet, or run the installer without `--yes`? It
+   prompts for them interactively, and the step can always be skipped — see
+   "Adding credentials later" below.
 
-4. From any phone on your WiFi, open `http://dashboard.local/admin/` (or use
-   the IP printed at the end of the installer). Walk through the first-run
-   wizard.
+   The installer installs apt deps (avahi, cage, chromium, build tools),
+   Node 22 via NodeSource, pnpm via corepack, creates a `dashboard` system
+   user with `/var/lib/dashboard` as the data directory, builds the monorepo,
+   installs `dashboard.service` (Node server) + `cage.service` (Wayland
+   kiosk), starts both, and advertises `dashboard.local` via Avahi.
 
-5. Once the wizard finishes, start the kiosk on the touchscreen:
+3. Open the address shown on the touchscreen (it displays a QR code too), or
+   the one the installer printed, from any phone on your WiFi. Walk through
+   the first-run wizard.
 
-   ```bash
-   sudo systemctl start cage
-   ```
+#### Adding credentials later
+
+Skipped Google during install, or need to change the client id/secret?
+
+```bash
+sudo nano /etc/dashboard/env
+# GOOGLE_CLIENT_ID=...apps.googleusercontent.com
+# GOOGLE_CLIENT_SECRET=...
+sudo systemctl restart dashboard
+```
+
+Then open the admin's Settings → Accounts page to connect Google.
+
+### What setup asks you
+
+The first-run wizard walks through, in order:
+
+1. **Connect Google** — sign in for two-way calendar sync. Optional; skip and
+   connect later from Settings → Accounts.
+2. **Choose calendars** — pick which of your Google calendars show up (only
+   shown once connected).
+3. **Family members** — a name, a color, and optionally a calendar for each
+   person.
+4. **Weather location** — search for your city.
+5. **Photos folder** — where to drop local photos for the slideshow (see
+   below).
+
+Then it hands off to the live dashboard.
 
 ### Local photo slideshow
 
-The slideshow widget reads from a folder on the Pi (Google Photos' Library
-API was deprecated for general use in 2025; the Ambient API requires Google
-Partner Program approval).
+The slideshow widget reads from a folder on the Pi.
 
 ```bash
 # As the dashboard user:

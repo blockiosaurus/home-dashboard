@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # scripts/install.sh — idempotent installer for Raspberry Pi OS Bookworm (64-bit).
 #
-# Usage (as root): sudo scripts/install.sh [--yes] [--repo-dir PATH]
+# Usage (as root):
+#   sudo scripts/install.sh [--yes] [--repo-dir PATH] [--no-kiosk] \
+#     [--google-client-id ID] [--google-client-secret SECRET]
 #
 # Expects the working tree to live somewhere we can read; copies sources to
 # /opt/dashboard, creates a `dashboard` system user with /var/lib/dashboard
@@ -13,16 +15,27 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ASSUME_YES=0
+NO_KIOSK=0
+GOOGLE_CLIENT_ID_ARG=""
+GOOGLE_CLIENT_ID_ARG_SET=0
+GOOGLE_CLIENT_SECRET_ARG=""
+GOOGLE_CLIENT_SECRET_ARG_SET=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --yes|-y) ASSUME_YES=1; shift ;;
     --repo-dir) REPO_DIR="$2"; shift 2 ;;
+    --no-kiosk) NO_KIOSK=1; shift ;;
+    --google-client-id) GOOGLE_CLIENT_ID_ARG="$2"; GOOGLE_CLIENT_ID_ARG_SET=1; shift 2 ;;
+    --google-client-secret) GOOGLE_CLIENT_SECRET_ARG="$2"; GOOGLE_CLIENT_SECRET_ARG_SET=1; shift 2 ;;
     -h|--help)
       cat <<EOF
-Usage: sudo $0 [--yes] [--repo-dir PATH]
-  --yes        Skip prompts.
-  --repo-dir   Source repo path (defaults to script's parent).
+Usage: sudo $0 [--yes] [--repo-dir PATH] [--no-kiosk] [--google-client-id ID] [--google-client-secret SECRET]
+  --yes                     Skip prompts.
+  --repo-dir PATH           Source repo path (defaults to script's parent).
+  --no-kiosk                Don't start cage.service after install.
+  --google-client-id ID     Google OAuth client id, written to /etc/dashboard/env.
+  --google-client-secret S  Google OAuth client secret, written to /etc/dashboard/env.
 EOF
       exit 0 ;;
     *) echo "unknown arg: $1" 1>&2; exit 2 ;;
@@ -178,11 +191,50 @@ EOF
   chmod 0640 /etc/dashboard/env
   chown root:"$SERVICE_GROUP" /etc/dashboard/env
 fi
+
+# Google OAuth credentials: take them from flags, prompt for whichever one is
+# missing (unless --yes), and only touch the env file if we ended up with a
+# value for at least one of them. Leaving both blank at the prompt skips this
+# entirely — the template stays untouched and can be edited later by hand.
+GOOGLE_CLIENT_ID_VALUE="$GOOGLE_CLIENT_ID_ARG"
+GOOGLE_CLIENT_SECRET_VALUE="$GOOGLE_CLIENT_SECRET_ARG"
+if [ "$ASSUME_YES" != "1" ]; then
+  if [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ]; then
+    read -r -p "Google OAuth client id (leave blank to skip): " GOOGLE_CLIENT_ID_VALUE
+  fi
+  if [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
+    read -rs -p "Google OAuth client secret (leave blank to skip): " GOOGLE_CLIENT_SECRET_VALUE
+    echo
+  fi
+fi
+
+if [ -n "$GOOGLE_CLIENT_ID_VALUE" ] || [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ]; then
+  ENV_TMP="$(mktemp)"
+  awk -v id="$GOOGLE_CLIENT_ID_VALUE" -v secret="$GOOGLE_CLIENT_SECRET_VALUE" '
+    BEGIN { id_done = 0; secret_done = 0 }
+    /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" id; id_done = 1; next }
+    /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" secret; secret_done = 1; next }
+    { print }
+    END {
+      if (!id_done) print "GOOGLE_CLIENT_ID=" id
+      if (!secret_done) print "GOOGLE_CLIENT_SECRET=" secret
+    }
+  ' /etc/dashboard/env >"$ENV_TMP"
+  install -m 0640 -o root -g "$SERVICE_GROUP" "$ENV_TMP" /etc/dashboard/env
+  rm -f "$ENV_TMP"
+  log_ok "Google OAuth credentials written to /etc/dashboard/env"
+else
+  log_warn "Google OAuth credentials skipped — add them later by editing /etc/dashboard/env"
+fi
+
 systemctl daemon-reload
 systemctl enable dashboard.service cage.service
 systemctl restart dashboard.service
-# cage requires a graphical target; we don't restart it here to avoid kicking
-# someone out of a current X/Wayland session during a re-run.
+if [ "$NO_KIOSK" = "1" ]; then
+  log_warn "--no-kiosk passed; not starting cage.service"
+else
+  systemctl is-active --quiet cage || systemctl start cage
+fi
 log_ok "systemd units installed and dashboard.service restarted"
 
 # ---- 9. Avahi ----------------------------------------------------------------
@@ -205,10 +257,23 @@ log_ok "cage/chromium presence checked"
 # ---- 11. Final summary -------------------------------------------------------
 log_step "11/11 Done"
 HOSTNAME_FQDN="$(hostname).local"
+KIOSK_NOTE=""
+if [ "$NO_KIOSK" = "1" ]; then
+  KIOSK_NOTE="
+Kiosk not started (--no-kiosk passed). Start it with:
+  sudo systemctl start cage
+"
+fi
 cat <<EOF
 
 ${COLOR_OK}Family Dashboard installed.${COLOR_RESET}
 
+Reach the admin UI from any device on this network:
+  http://$HOSTNAME_FQDN/admin/  (mDNS)
+  http://$(hostname -I | awk '{print $1}'):3000/admin/  (IP fallback)
+
+Look at the touchscreen: it shows this same address and a QR code.
+$KIOSK_NOTE
 Service status:   sudo systemctl status dashboard cage avahi-daemon
 Logs (Node):      sudo journalctl -u dashboard -f
 Logs (kiosk):     sudo journalctl -u cage -f
@@ -216,14 +281,7 @@ Data directory:   $DATA_DIR
 Source tree:      $INSTALL_DIR
 Env file:         /etc/dashboard/env  (put GOOGLE_CLIENT_ID/SECRET here)
 
-Reach the admin UI from any device on this network:
-  http://$HOSTNAME_FQDN/admin/  (mDNS)
-  http://$(hostname -I | awk '{print $1}'):3000/admin/  (IP fallback)
-
 After editing /etc/dashboard/env, run:
   sudo systemctl restart dashboard cage
-
-To start the kiosk now (will switch the active display):
-  sudo systemctl start cage
 
 EOF
