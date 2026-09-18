@@ -20,12 +20,17 @@ const failWithBody = async (label: string, res: Response): Promise<never> => {
 export interface CalendarSummary {
   id: string
   summary: string
+  primary?: boolean
+  backgroundColor?: string
 }
 
 export const listCalendars = async (accessToken: string): Promise<CalendarSummary[]> => {
-  const res = await fetch(`${API}/users/me/calendarList?fields=items(id,summary)`, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  })
+  const res = await fetch(
+    `${API}/users/me/calendarList?fields=items(id,summary,primary,backgroundColor)`,
+    {
+      headers: { authorization: `Bearer ${accessToken}` },
+    },
+  )
   if (!res.ok) await failWithBody('listCalendars', res)
   const j = (await res.json()) as { items?: CalendarSummary[] }
   return j.items ?? []

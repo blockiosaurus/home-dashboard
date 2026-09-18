@@ -3,16 +3,11 @@ import { api } from '../api'
 import type { LocationValue } from '../components/LocationPicker'
 
 /**
- * Ordered wizard steps. Task 4 inserts `'calendars'` right after `'connect'` —
- * that's the only edit needed to add the step.
+ * Ordered wizard steps. `'calendars'` is skipped at render time (not shown,
+ * not counted in "Step N of M") when no Google account is connected — see
+ * `Wizard.tsx`, which filters this list against the `['accounts']` query.
  */
-export const WIZARD_STEPS = [
-  'connect',
-  // <-- Task 4 inserts 'calendars' here.
-  'people',
-  'weather',
-  'photos',
-] as const
+export const WIZARD_STEPS = ['connect', 'calendars', 'people', 'weather', 'photos'] as const
 
 export type WizardStepId = (typeof WIZARD_STEPS)[number]
 

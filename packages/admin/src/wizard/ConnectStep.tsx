@@ -55,7 +55,11 @@ export const ConnectStep = ({ onContinue }: { onContinue: () => void }) => {
       const res = await api.oauthPoll(flow.deviceCode)
       if (res.status === 'ok') {
         clearInterval(id)
-        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        // Await the refetch (not just the invalidation) before continuing: the
+        // wizard orchestrator reads this same ['accounts'] query to decide
+        // whether to show the calendars step, and advancing before the fresh
+        // data lands would skip straight past it.
+        await queryClient.invalidateQueries({ queryKey: ['accounts'] })
         onContinue()
       } else if (res.status === 'denied' || res.status === 'expired') {
         clearInterval(id)

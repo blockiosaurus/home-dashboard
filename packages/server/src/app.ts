@@ -13,6 +13,7 @@ import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerAccountsWriteRoutes } from './routes/accounts-write'
+import { registerCalendarsRoutes } from './routes/calendars'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
 import { registerGoogleAlbumsRoute } from './routes/google-albums'
@@ -155,6 +156,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
   registerAccountsWriteRoutes(app, db.raw, { machineId })
+  registerCalendarsRoutes(app, db.raw)
   registerWidgetsListRoute(app)
   registerPeopleRoutes(app, db.raw)
   registerSystemRoutes(app, db.raw, {
@@ -166,12 +168,10 @@ export const buildApp = async (opts: AppOptions) => {
 
   await registerStatic(app, { localPhotosDir })
 
-  registerOauthRoutes(app, db.raw, {
-    ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),
-    ...(opts.googleClientSecret !== undefined ? { clientSecret: opts.googleClientSecret } : {}),
-    machineId,
-  })
-
+  // Sync starts before the OAuth routes so `onAccountAdded` below has a real
+  // `runNow` to call as soon as the device flow completes — otherwise a
+  // freshly connected account would sit until the next 60s tick before its
+  // calendars are discovered, leaving the wizard's calendar picker empty.
   const sync = await startSyncService({
     db: db.raw,
     broker,
@@ -184,6 +184,13 @@ export const buildApp = async (opts: AppOptions) => {
     machineId,
   })
   app.addHook('onClose', async () => sync.stop())
+
+  registerOauthRoutes(app, db.raw, {
+    ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),
+    ...(opts.googleClientSecret !== undefined ? { clientSecret: opts.googleClientSecret } : {}),
+    machineId,
+    onAccountAdded: () => sync.runNow(),
+  })
 
   const sceneSched = startSceneScheduler({ db: db.raw, broker })
   app.addHook('onClose', async () => sceneSched.stop())

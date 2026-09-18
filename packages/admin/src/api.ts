@@ -18,6 +18,14 @@ export interface Account {
   created_at: number
 }
 
+export interface Calendar {
+  id: string
+  accountId: string
+  summary: string
+  visible: boolean
+  color: string | null
+}
+
 export const api = {
   getScenes: async () => {
     const res = await fetch('/api/scenes')
@@ -176,5 +184,19 @@ export const api = {
   deleteAccount: async (id: string) => {
     const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('account delete failed')
+  },
+  getCalendars: async () => {
+    const res = await fetch('/api/calendars')
+    if (!res.ok) throw new Error('calendars fetch failed')
+    return res.json() as Promise<{ calendars: Calendar[] }>
+  },
+  putCalendar: async (id: string, patch: { visible?: boolean; color?: string | null }) => {
+    const res = await fetch(`/api/calendars/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!res.ok) throw new Error('calendar save failed')
+    return res.json() as Promise<Calendar>
   },
 }
