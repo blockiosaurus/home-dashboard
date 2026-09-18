@@ -21,61 +21,98 @@ export const WidgetPalette = ({ existing, onAdd }: WidgetPaletteProps) => {
   // When nothing fits, the reason has to be visible on the page — a disabled
   // button with a `title` tooltip says nothing on a touchscreen.
   const gridFull = widgets.length > 0 && spots.every((s) => s === null)
+  const noRoomWidgets = widgets.filter((_, i) => spots[i] === null)
+
+  const addAt = (widget: (typeof widgets)[number], spot: { x: number; y: number }) => {
+    onAdd(
+      clampCell({
+        instanceId: newId(),
+        widgetId: widget.id,
+        x: spot.x,
+        y: spot.y,
+        w: widget.defaultSize.w,
+        h: widget.defaultSize.h,
+        // Start from the widget's own sensible defaults so a newly placed
+        // widget works without anyone editing its settings.
+        config: widget.defaultConfig ?? {},
+      }),
+    )
+  }
 
   return (
-    <Card className="w-56 shrink-0">
-      <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
-        Add widget
-      </h3>
-      <div className="mt-3 space-y-1">
-        {widgets.map((w, i) => {
-          const spot = spots[i] ?? null
-          return (
-            <div key={w.id}>
+    <>
+      {/* Below `lg`: a horizontally scrolling row of chips so the palette
+       * never forces the page wider than the phone. */}
+      <div className="lg:hidden">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
+          Add widget
+        </h3>
+        <div className="mt-2 flex flex-nowrap gap-2 overflow-x-auto pb-1">
+          {widgets.map((w, i) => {
+            const spot = spots[i] ?? null
+            return (
               <button
+                key={w.id}
                 type="button"
                 disabled={spot === null}
-                onClick={() => {
-                  if (!spot) return
-                  onAdd(
-                    clampCell({
-                      instanceId: newId(),
-                      widgetId: w.id,
-                      x: spot.x,
-                      y: spot.y,
-                      w: w.defaultSize.w,
-                      h: w.defaultSize.h,
-                      // Start from the widget's own sensible defaults so a newly
-                      // placed widget works without anyone editing its settings.
-                      config: w.defaultConfig ?? {},
-                    }),
-                  )
-                }}
-                className="block w-full rounded-lg border border-[var(--text-dim)]/20 bg-white px-3 py-2 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => spot && addAt(w, spot)}
+                className="min-h-10 shrink-0 whitespace-nowrap rounded-full border border-[var(--text-dim)]/20 bg-white px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <span className="block text-sm font-semibold">{w.name}</span>
-                {w.description ? (
-                  <span className="mt-0.5 block text-xs leading-snug text-[var(--text-dim)]">
-                    {w.description}
-                  </span>
-                ) : null}
+                {w.name}
               </button>
-              {spot === null ? (
-                // Every disabled control says why on the page itself — a `title`
-                // tooltip is invisible on the touchscreen this is used from.
-                <p className="mt-0.5 px-3 text-xs leading-snug text-[var(--text-dim)]">
-                  No room for a {w.defaultSize.w}×{w.defaultSize.h} widget.
-                </p>
-              ) : null}
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
+        {noRoomWidgets.length > 0 ? (
+          // A single summary line keeps the reason visible without a
+          // tooltip, without a "No room" line under every chip.
+          <p className="mt-1 text-xs leading-snug text-[var(--text-dim)]">
+            No room for: {noRoomWidgets.map((w) => w.name).join(', ')}.
+          </p>
+        ) : null}
       </div>
-      {gridFull ? (
-        <p className="mt-2 text-xs leading-snug text-[var(--text-dim)]">
-          The grid is full. Remove or shrink a widget to add another.
-        </p>
-      ) : null}
-    </Card>
+
+      {/* `lg` and up: the original vertical list with per-widget descriptions. */}
+      <Card className="hidden lg:block lg:w-56 lg:shrink-0">
+        <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
+          Add widget
+        </h3>
+        <div className="mt-3 space-y-1">
+          {widgets.map((w, i) => {
+            const spot = spots[i] ?? null
+            return (
+              <div key={w.id}>
+                <button
+                  type="button"
+                  disabled={spot === null}
+                  onClick={() => spot && addAt(w, spot)}
+                  className="block w-full rounded-lg border border-[var(--text-dim)]/20 bg-white px-3 py-2 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="block text-sm font-semibold">{w.name}</span>
+                  {w.description ? (
+                    <span className="mt-0.5 block text-xs leading-snug text-[var(--text-dim)]">
+                      {w.description}
+                    </span>
+                  ) : null}
+                </button>
+                {spot === null ? (
+                  // Every disabled control says why on the page itself — a
+                  // `title` tooltip is invisible on the touchscreen this is
+                  // used from.
+                  <p className="mt-0.5 px-3 text-xs leading-snug text-[var(--text-dim)]">
+                    No room for a {w.defaultSize.w}×{w.defaultSize.h} widget.
+                  </p>
+                ) : null}
+              </div>
+            )
+          })}
+        </div>
+        {gridFull ? (
+          <p className="mt-2 text-xs leading-snug text-[var(--text-dim)]">
+            The grid is full. Remove or shrink a widget to add another.
+          </p>
+        ) : null}
+      </Card>
+    </>
   )
 }

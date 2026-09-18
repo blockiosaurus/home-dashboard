@@ -30,7 +30,11 @@ export interface WizardCardProps {
 
 /** Shared card shell for a wizard step: title, subtitle, body, footer. */
 export const WizardCard = ({ title, subtitle, children, footer }: WizardCardProps) => (
-  <div className="flex flex-1 items-center justify-center p-6">
+  // `min-h-full` (not a fixed height) lets this box grow past the viewport
+  // when the card's content is taller than a short phone viewport — with a
+  // fixed/flex-grown height, centering would crop the top of an overflowing
+  // card instead of letting the page scroll to it.
+  <div className="flex min-h-full items-center justify-center p-6">
     <Card className="w-full max-w-md">
       <h1 className="text-2xl font-bold">{title}</h1>
       {subtitle ? <p className="mt-1 text-sm text-[var(--text-dim)]">{subtitle}</p> : null}

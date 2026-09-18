@@ -16,28 +16,29 @@ const Shell = () => {
   if (!system) return null
   if (!system.firstRunComplete) return <Navigate to="/wizard" replace />
 
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    `flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)] hover:bg-gray-100'}`
+
   return (
-    <div className="flex h-full">
-      <nav className="flex w-56 flex-col gap-1 border-r border-gray-200 bg-white p-4">
-        <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
+    <div className="flex h-full flex-col lg:flex-row">
+      <nav className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-gray-200 bg-white p-2 lg:w-56 lg:flex-col lg:items-stretch lg:overflow-visible lg:border-b-0 lg:border-r lg:p-4">
+        <h2 className="mb-3 hidden text-xs font-bold uppercase tracking-wider text-[var(--text-dim)] lg:block">
           Dashboard
         </h2>
-        <NavLink
-          to="/editor"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)] hover:bg-gray-100'}`
-          }
-        >
+        <NavLink to="/editor" className={navLinkClass}>
           Scene editor
         </NavLink>
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `rounded-lg px-3 py-2 text-sm font-semibold ${isActive ? 'bg-[var(--accent)] text-white' : 'text-[var(--text)] hover:bg-gray-100'}`
-          }
-        >
+        <NavLink to="/settings" className={navLinkClass}>
           Settings
         </NavLink>
+        <a
+          href="/"
+          target="_blank"
+          rel="noreferrer"
+          className="ml-auto flex min-h-10 shrink-0 items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold text-[var(--text-dim)] hover:bg-gray-100 lg:ml-0 lg:mt-auto"
+        >
+          Open dashboard
+        </a>
       </nav>
       <div className="flex-1 overflow-y-auto">
         <Routes>

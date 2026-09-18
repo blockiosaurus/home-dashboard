@@ -80,8 +80,8 @@ export const SceneEditor = () => {
 
   return (
     <div className="flex h-full flex-col gap-3 p-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-bold">{draft.name}</h1>
           <label className="flex flex-col gap-1 text-sm">
             <span className="sr-only">Scene</span>
@@ -127,9 +127,9 @@ export const SceneEditor = () => {
           {publish.error instanceof Error ? publish.error.message : 'Publish failed.'}
         </div>
       ) : null}
-      <div className="flex flex-1 gap-3">
+      <div className="flex flex-1 flex-col gap-3 lg:flex-row">
         <WidgetPalette existing={draft.cells} onAdd={onAddWidget} />
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <GridCanvas
             cells={draft.cells}
             names={widgetNames}

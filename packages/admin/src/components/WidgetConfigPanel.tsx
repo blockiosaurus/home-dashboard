@@ -206,7 +206,7 @@ export const WidgetConfigPanel = ({ cell, names, onChange, onDelete }: WidgetCon
 
   if (!cell) {
     return (
-      <Card className="w-72 shrink-0">
+      <Card className="w-full lg:w-72 lg:shrink-0">
         <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
           Configure
         </h3>
@@ -222,7 +222,7 @@ export const WidgetConfigPanel = ({ cell, names, onChange, onDelete }: WidgetCon
   }
 
   return (
-    <Card className="w-72 shrink-0">
+    <Card className="w-full lg:w-72 lg:shrink-0">
       <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
         {names[cell.widgetId] ?? cell.widgetId}
       </h3>
