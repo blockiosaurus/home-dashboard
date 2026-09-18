@@ -1,6 +1,6 @@
 import type { LayoutCell } from '@dashboard/core'
 import { Button, Card, Input } from '@dashboard/ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FieldSpec } from '../widget-forms'
 import { WIDGET_FORMS } from '../widget-forms'
 import { LocationPicker } from './LocationPicker'
@@ -19,13 +19,89 @@ type Config = Record<string, unknown>
 const asConfig = (config: unknown): Config =>
   config && typeof config === 'object' ? (config as Config) : {}
 
+type NumberFieldSpec = Extract<FieldSpec, { type: 'number' }>
+
+/** Number fields keep their own local (string) draft while typing, and only
+ * clamp + commit on blur/Enter. Committing straight from `onChange` (as the
+ * other field types do) makes backspacing-then-retyping impossible: an
+ * intermediate value like "1" gets clamped up to `min` immediately, and
+ * `Number('')` is 0, so clearing the field snaps back to `min` instead of
+ * letting the user finish typing. */
+const NumberField = ({
+  field,
+  config,
+  cellId,
+  onPatch,
+}: {
+  field: NumberFieldSpec
+  config: Config
+  cellId: string
+  onPatch: (patch: Config) => void
+}) => {
+  const divisor = field.divisor ?? 1
+  const raw = config[field.key]
+  const committedText = typeof raw === 'number' ? String(raw / divisor) : ''
+  const [text, setText] = useState(committedText)
+  // Tracks the (cellId, committedText) pair this draft was last synced from,
+  // so an outside change — a different cell selected, or the same field's
+  // value changed by something other than this input (e.g. the Advanced
+  // JSON section) — resets the draft, while the field's own in-progress
+  // typing (which doesn't touch `config` until blur) is left alone.
+  const lastSynced = useRef({ cellId, committedText })
+
+  useEffect(() => {
+    const outsideChange =
+      lastSynced.current.cellId !== cellId || lastSynced.current.committedText !== committedText
+    lastSynced.current = { cellId, committedText }
+    if (outsideChange) setText(committedText)
+  }, [cellId, committedText])
+
+  const commit = () => {
+    const n = Number(text)
+    if (text.trim() === '' || !Number.isFinite(n)) {
+      // Empty or unparseable: restore whatever was last committed rather
+      // than forcing the field to `min`.
+      setText(committedText)
+      return
+    }
+    let clamped = n
+    if (field.min !== undefined) clamped = Math.max(field.min, clamped)
+    if (field.max !== undefined) clamped = Math.min(field.max, clamped)
+    setText(String(clamped))
+    onPatch({ [field.key]: clamped * divisor })
+  }
+
+  return (
+    <div>
+      <Input
+        label={field.label}
+        type="number"
+        min={field.min}
+        max={field.max}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commit()
+          }
+        }}
+      />
+      {field.hint ? <p className="mt-1 text-xs text-[var(--text-dim)]">{field.hint}</p> : null}
+    </div>
+  )
+}
+
 const FieldRow = ({
   field,
   config,
+  cellId,
   onPatch,
 }: {
   field: FieldSpec
   config: Config
+  cellId: string
   onPatch: (patch: Config) => void
 }) => {
   if (field.type === 'text') {
@@ -40,27 +116,7 @@ const FieldRow = ({
   }
 
   if (field.type === 'number') {
-    const divisor = field.divisor ?? 1
-    const raw = config[field.key]
-    const displayValue = typeof raw === 'number' ? raw / divisor : ''
-    return (
-      <div>
-        <Input
-          label={field.label}
-          type="number"
-          min={field.min}
-          max={field.max}
-          value={displayValue}
-          onChange={(e) => {
-            const n = Number(e.target.value)
-            if (!Number.isFinite(n)) return
-            const clamped = field.min !== undefined ? Math.max(field.min, n) : n
-            onPatch({ [field.key]: clamped * divisor })
-          }}
-        />
-        {field.hint ? <p className="mt-1 text-xs text-[var(--text-dim)]">{field.hint}</p> : null}
-      </div>
-    )
+    return <NumberField field={field} config={config} cellId={cellId} onPatch={onPatch} />
   }
 
   if (field.type === 'select') {
@@ -125,16 +181,28 @@ export const WidgetConfigPanel = ({ cell, names, onChange, onDelete }: WidgetCon
   const configText = JSON.stringify(config, null, 2)
   const [jsonText, setJsonText] = useState(configText)
   const [jsonError, setJsonError] = useState(false)
+  // True whenever the textarea holds text that hasn't been successfully
+  // applied to `config` yet (invalid JSON, or valid JSON not yet parsed on
+  // this keystroke). While dirty, the resync effect below must leave the
+  // textarea alone — otherwise a sibling field's patch (which changes
+  // `configText`) would silently overwrite whatever the user was still
+  // typing in the JSON box.
+  const [jsonDirty, setJsonDirty] = useState(false)
+  const lastCellId = useRef(cell?.instanceId)
 
-  // Re-sync the Advanced textarea whenever the underlying config changes for
-  // a reason other than the textarea itself (switching cells, a field input
-  // above, or an external prop update) — but not while the user has typed
-  // something in the textarea we haven't been able to parse yet, since that
-  // JSON is still "in progress" and shouldn't be clobbered by a stale value.
+  // Re-sync the Advanced textarea from `config` when: the selected cell
+  // changed (a different cell's in-progress JSON has no bearing on this
+  // one, dirty or not), or the config changed for some reason other than
+  // the textarea itself while the textarea has no unsaved edits of its own.
   useEffect(() => {
-    setJsonText(configText)
-    setJsonError(false)
-  }, [configText])
+    const switchedCell = lastCellId.current !== cell?.instanceId
+    lastCellId.current = cell?.instanceId
+    if (switchedCell || !jsonDirty) {
+      setJsonText(configText)
+      setJsonError(false)
+      setJsonDirty(false)
+    }
+  }, [cell?.instanceId, configText, jsonDirty])
 
   if (!cell) {
     return (
@@ -166,6 +234,7 @@ export const WidgetConfigPanel = ({ cell, names, onChange, onDelete }: WidgetCon
               key={field.type === 'location' ? 'location' : field.key}
               field={field}
               config={config}
+              cellId={cell.instanceId}
               onPatch={onPatch}
             />
           ))}
@@ -186,9 +255,11 @@ export const WidgetConfigPanel = ({ cell, names, onChange, onDelete }: WidgetCon
           onChange={(e) => {
             const text = e.target.value
             setJsonText(text)
+            setJsonDirty(true)
             try {
               const next = JSON.parse(text)
               setJsonError(false)
+              setJsonDirty(false)
               onChange({ ...cell, config: next })
             } catch {
               setJsonError(true)
