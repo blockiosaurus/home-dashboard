@@ -131,6 +131,7 @@ const ConnectStep = ({ onDone }: { onDone: () => void }) => {
     return (
       <ConnectShell>
         <p className="mt-2 text-sm text-[var(--text-dim)]">Loading…</p>
+        <SkipForNow onSkip={onDone} />
       </ConnectShell>
     )
   }
