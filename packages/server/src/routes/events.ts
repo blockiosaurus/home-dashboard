@@ -13,7 +13,14 @@ export const registerEventsRoutes = (app: FastifyInstance, db: Database.Database
     const rows = db
       .prepare(
         `SELECT e.id, e.calendar_id, e.google_event_id, e.start, e.end, e.all_day,
-                e.title, e.location, e.description, e.color, e.etag
+                e.title, e.location, e.description, e.etag,
+                COALESCE(
+                  (SELECT color FROM people WHERE primary_calendar_id = c.id ORDER BY id LIMIT 1),
+                  c.color_override,
+                  e.color
+                ) AS color,
+                (SELECT name FROM people WHERE primary_calendar_id = c.id ORDER BY id LIMIT 1)
+                  AS person_name
          FROM events_cache e
          JOIN calendars c ON c.id = e.calendar_id
          WHERE c.visible = 1
@@ -32,6 +39,7 @@ export const registerEventsRoutes = (app: FastifyInstance, db: Database.Database
       location: string | null
       description: string | null
       color: string | null
+      person_name: string | null
       etag: string
     }>
     return {
@@ -46,6 +54,7 @@ export const registerEventsRoutes = (app: FastifyInstance, db: Database.Database
         location: r.location,
         description: r.description,
         color: r.color,
+        personName: r.person_name,
         etag: r.etag,
       })),
     }

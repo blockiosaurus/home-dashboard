@@ -33,32 +33,54 @@ After flashing Raspberry Pi OS Bookworm:
 
        sudo install -d -o pi -g pi /opt
        sudo chown pi:pi /opt
-       git clone https://github.com/YOU/dashboard.git /opt/dashboard
+       git clone https://github.com/blockiosaurus/home-dashboard.git /opt/dashboard
        cd /opt/dashboard
 
 3. Run the installer:
 
-       sudo scripts/install.sh --repo-dir /opt/dashboard --yes
+       sudo scripts/install.sh --repo-dir /opt/dashboard
 
-4. Configure your Google OAuth client id + secret. On the Pi, prefer the
-   systemd-managed file at `/etc/dashboard/env` (root-owned, 0640):
+   It prompts for the Google OAuth client id + secret (each prompt can be
+   left blank to skip). Prefer the prompt: the `--google-client-id` /
+   `--google-client-secret` flags exist for unattended installs (with
+   `--yes`), but a secret passed on the command line lands in your shell
+   history. The installer writes the credentials into the
+   systemd-managed file at `/etc/dashboard/env` (root-owned, 0640), enables
+   `dashboard.service` + `cage.service`, and starts both — the kiosk boots
+   straight into the setup screen. Pass `--no-kiosk` to skip starting
+   `cage.service`.
 
-       sudo nano /etc/dashboard/env
-       sudo systemctl restart dashboard
+4. From any phone on your WiFi, open `http://dashboard.local:3000/admin/` (or use the IP printed
+   at the end of the installer output, or the address and QR code shown on the
+   touchscreen). Walk through the wizard.
 
-   For dev or non-Pi installs, copy the template at the repo root:
+### Adding credentials later
 
-       cp .env.example .env
-       # edit .env
+Skipped Google during install, or need to change the client id/secret? On
+the Pi:
 
-5. From any phone on your WiFi, open `http://dashboard.local/admin/` (or use the IP printed
-   at the end of the installer output). Walk through the wizard.
+    sudo nano /etc/dashboard/env
+    sudo systemctl restart dashboard
 
-6. Once the wizard finishes, start the kiosk:
+For dev or non-Pi installs, copy the template at the repo root instead:
 
-       sudo systemctl start cage
+    cp .env.example .env
+    # edit .env
 
-   The dashboard appears on the touchscreen.
+### What setup asks you
+
+The first-run wizard, in order:
+
+1. **Connect Google** — sign in for two-way calendar sync. Optional; skip and
+   connect later from Settings → Accounts.
+2. **Choose calendars** — pick which of your Google calendars show up (only
+   shown once connected).
+3. **Family members** — a name, a color, and optionally a calendar for each
+   person.
+4. **Weather location** — search for your city.
+5. **Photos folder** — where to drop local photos for the slideshow.
+
+Then it hands off to the live dashboard.
 
 ## Troubleshooting
 

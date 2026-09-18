@@ -1,5 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
+import agendaDef from '@dashboard/widget-agenda'
+import calendarDef from '@dashboard/widget-calendar'
+import choresDef from '@dashboard/widget-chores'
+import clockDef from '@dashboard/widget-clock'
+import mealPlanDef from '@dashboard/widget-meal-plan'
+import notesDef from '@dashboard/widget-notes'
+import packagesDef from '@dashboard/widget-packages'
 import slideshowDef from '@dashboard/widget-slideshow'
 import { createSlideshowBackend } from '@dashboard/widget-slideshow/backend'
 import weatherDef from '@dashboard/widget-weather'
@@ -7,32 +14,28 @@ import { createWeatherBackend } from '@dashboard/widget-weather/backend'
 import websocket from '@fastify/websocket'
 import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
-import { createAccessTokenProvider } from './auth/access-token'
-import { refreshAccessToken } from './auth/google'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerAccountsWriteRoutes } from './routes/accounts-write'
+import { registerCalendarsRoutes } from './routes/calendars'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
-import { registerGoogleAlbumsRoute } from './routes/google-albums'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerPeopleRoutes } from './routes/people'
 import { registerPhotosRoutes } from './routes/photos'
-import { registerPhotosAmbientRoutes } from './routes/photos-ambient'
 import { registerSceneScheduleRoutes } from './routes/scene-schedule'
 import { registerScenesRoutes } from './routes/scenes'
+import { registerSyncStatusRoutes } from './routes/sync-status'
 import { registerSystemRoutes } from './routes/system'
 import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerWidgetsListRoute } from './routes/widgets-list'
 import { registerStatic } from './static'
-import { listAmbientMediaItems } from './sync/google-ambient'
-import { listAlbumMedia } from './sync/google-photos'
 import { listLocalPhotos } from './sync/local-photos'
 import { startSceneScheduler } from './sync/scene-scheduler'
 import { startSyncService } from './sync/service'
-import { fetchWeather } from './sync/weather-client'
-import { instancesFromScene } from './widgets/instances-from-scene'
+import { type WeatherInput, fetchWeather } from './sync/weather-client'
+import { collectInstances } from './widgets/instances-from-scene'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
 import { createBroker } from './ws/broker'
@@ -42,6 +45,10 @@ export interface AppOptions {
   localPhotosDir?: string
   googleClientId?: string
   googleClientSecret?: string
+  port?: number
+  /** Overrides the open-meteo client the weather backend calls. Only tests
+   * pass this; production uses the real `fetchWeather`. */
+  fetchWeather?: (input: WeatherInput) => Promise<unknown>
 }
 
 export const buildApp = async (opts: AppOptions) => {
@@ -86,66 +93,42 @@ export const buildApp = async (opts: AppOptions) => {
   })()
 
   const widgetRegistry = createRegistry()
-  widgetRegistry.register({ ...weatherDef, backend: createWeatherBackend(fetchWeather) })
-
-  const getAccessToken =
-    opts.googleClientId && opts.googleClientSecret
-      ? createAccessTokenProvider({
-          db: db.raw,
-          machineId,
-          refresh: (rt) =>
-            refreshAccessToken(
-              opts.googleClientId as string,
-              opts.googleClientSecret as string,
-              rt,
-            ),
-        })
-      : async () => null
-
-  registerGoogleAlbumsRoute(app, { getAccessToken })
+  // Every widget the editor can place must be registered here, otherwise the
+  // palette can't offer it and a scene containing it renders an empty tile.
+  // Only weather and slideshow need a server-side backend; the rest either
+  // render from the client's own clock/API calls or keep state via
+  // /api/widgets/:id/state.
+  widgetRegistry.register(clockDef)
+  widgetRegistry.register(calendarDef)
+  widgetRegistry.register(agendaDef)
+  widgetRegistry.register(choresDef)
+  widgetRegistry.register(mealPlanDef)
+  widgetRegistry.register(notesDef)
+  widgetRegistry.register(packagesDef)
+  widgetRegistry.register({
+    ...weatherDef,
+    backend: createWeatherBackend(opts.fetchWeather ?? fetchWeather),
+  })
 
   const localPhotosDir = opts.localPhotosDir ?? './data/photos'
-  const listAmbientForFirstAccount = async () => {
-    const row = db.raw
-      .prepare(
-        'SELECT ambient_device_id FROM accounts WHERE ambient_device_id IS NOT NULL ORDER BY created_at ASC LIMIT 1',
-      )
-      .get() as { ambient_device_id: string } | undefined
-    if (!row) return []
-    const token = await getAccessToken()
-    if (!token) return []
-    try {
-      return await listAmbientMediaItems(token, row.ambient_device_id)
-    } catch (err) {
-      app.log.warn({ err }, 'ambient media fetch failed')
-      return []
-    }
-  }
   widgetRegistry.register({
     ...slideshowDef,
     backend: createSlideshowBackend({
-      googlePhotos: { list: listAlbumMedia, getAccessToken },
       local: { list: () => listLocalPhotos(localPhotosDir) },
-      ambient: { list: listAmbientForFirstAccount },
     }),
   })
 
-  const widgetInstances = (() => {
-    const scene = db.raw.prepare('SELECT layout_json FROM scenes WHERE is_default = 1').get() as
-      | { layout_json: string }
-      | undefined
-    if (!scene) return []
-    return instancesFromScene(JSON.parse(scene.layout_json))
-  })()
-
+  // Backends run for every scene's widgets, not just the default one, so the
+  // Sleep scene's slideshow already has photos by the time it takes over.
   const widgetRuntime = startWidgetRuntime({
     broker,
     widgets: widgetRegistry.list(),
-    instances: widgetInstances,
+    instances: collectInstances(db.raw),
   })
   widgetCache = widgetRuntime.cache
   app.addHook('onClose', async () => widgetRuntime.stop())
   app.decorate('widgetRegistry', widgetRegistry)
+  app.decorate('widgetRuntime', widgetRuntime)
 
   app.decorate('broker', broker)
   app.decorate('db', db.raw)
@@ -155,21 +138,23 @@ export const buildApp = async (opts: AppOptions) => {
   registerWidgetStateRoutes(app, db.raw)
   registerAccountsRoutes(app, db.raw)
   registerAccountsWriteRoutes(app, db.raw, { machineId })
-  registerWidgetsListRoute(app)
+  registerCalendarsRoutes(app, db.raw)
+  registerWidgetsListRoute(app, db.raw)
   registerPeopleRoutes(app, db.raw)
-  registerSystemRoutes(app, db.raw)
+  registerSystemRoutes(app, db.raw, {
+    googleConfigured: Boolean(opts.googleClientId && opts.googleClientSecret),
+    port: opts.port ?? 3000,
+  })
   registerSceneScheduleRoutes(app, db.raw)
+  registerSyncStatusRoutes(app, db.raw)
   registerPhotosRoutes(app, { localPhotosDir })
-  registerPhotosAmbientRoutes(app, db.raw, { getAccessToken })
 
   await registerStatic(app, { localPhotosDir })
 
-  registerOauthRoutes(app, db.raw, {
-    ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),
-    ...(opts.googleClientSecret !== undefined ? { clientSecret: opts.googleClientSecret } : {}),
-    machineId,
-  })
-
+  // Sync starts before the OAuth routes so `onAccountAdded` below has a real
+  // `runNow` to call as soon as the device flow completes — otherwise a
+  // freshly connected account would sit until the next 60s tick before its
+  // calendars are discovered, leaving the wizard's calendar picker empty.
   const sync = await startSyncService({
     db: db.raw,
     broker,
@@ -183,6 +168,13 @@ export const buildApp = async (opts: AppOptions) => {
   })
   app.addHook('onClose', async () => sync.stop())
 
+  registerOauthRoutes(app, db.raw, {
+    ...(opts.googleClientId !== undefined ? { clientId: opts.googleClientId } : {}),
+    ...(opts.googleClientSecret !== undefined ? { clientSecret: opts.googleClientSecret } : {}),
+    machineId,
+    onAccountAdded: () => sync.runNow(),
+  })
+
   const sceneSched = startSceneScheduler({ db: db.raw, broker })
   app.addHook('onClose', async () => sceneSched.stop())
 
@@ -195,5 +187,6 @@ declare module 'fastify' {
     broker: ReturnType<typeof createBroker>
     db: Database.Database
     widgetRegistry: ReturnType<typeof createRegistry>
+    widgetRuntime: ReturnType<typeof startWidgetRuntime>
   }
 }

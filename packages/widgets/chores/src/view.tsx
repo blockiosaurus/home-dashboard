@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 
 export interface ChoresConfig {
-  instanceId: string
   title?: string
   initial?: string[]
 }
@@ -23,7 +22,14 @@ const newId = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
-export const ChoresView = ({ config }: { config: ChoresConfig; data: undefined }) => {
+export const ChoresView = ({
+  instanceId,
+  config,
+}: {
+  instanceId: string
+  config: ChoresConfig
+  data: undefined
+}) => {
   const [state, setState] = useState<ChoresState>({
     items: (config.initial ?? []).map((text) => ({ id: newId(), text, done: false })),
   })
@@ -33,7 +39,7 @@ export const ChoresView = ({ config }: { config: ChoresConfig; data: undefined }
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const res = await fetch(stateUrl(config.instanceId))
+      const res = await fetch(stateUrl(instanceId))
       if (res.status === 404) return
       if (!res.ok) return
       const j = (await res.json()) as { version: number; data: ChoresState }
@@ -45,7 +51,7 @@ export const ChoresView = ({ config }: { config: ChoresConfig; data: undefined }
     return () => {
       cancelled = true
     }
-  }, [config.instanceId])
+  }, [instanceId])
 
   const persist = async (next: ChoresState) => {
     setState(next)
@@ -54,7 +60,7 @@ export const ChoresView = ({ config }: { config: ChoresConfig; data: undefined }
       data: next,
     }
     if (version > 0) body.expectedVersion = version
-    const res = await fetch(stateUrl(config.instanceId), {
+    const res = await fetch(stateUrl(instanceId), {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),

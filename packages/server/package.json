@@ -26,7 +26,14 @@
     "pino-pretty": "13.0.0",
     "tsx": "4.19.2",
     "undici": "7.1.1",
-    "zod": "3.23.8"
+    "zod": "3.23.8",
+    "@dashboard/widget-agenda": "workspace:*",
+    "@dashboard/widget-calendar": "workspace:*",
+    "@dashboard/widget-chores": "workspace:*",
+    "@dashboard/widget-clock": "workspace:*",
+    "@dashboard/widget-meal-plan": "workspace:*",
+    "@dashboard/widget-notes": "workspace:*",
+    "@dashboard/widget-packages": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "7.6.12",

@@ -50,9 +50,7 @@ export const RotatedRoot = ({ children }: { children: ReactNode }) => {
         width: '100vh',
         height: '100vw',
         transform:
-          rotation === 90
-            ? 'translateX(100vw) rotate(90deg)'
-            : 'translateY(100vh) rotate(-90deg)',
+          rotation === 90 ? 'translateX(100vw) rotate(90deg)' : 'translateY(100vh) rotate(-90deg)',
         transformOrigin: 'top left',
       }
     : {

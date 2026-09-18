@@ -1,3 +1,37 @@
+export interface SystemState {
+  firstRunComplete: boolean
+  manualScene: string | null
+  weatherDefault: {
+    lat: number
+    lon: number
+    unit: 'celsius' | 'fahrenheit'
+    label?: string
+  } | null
+  googleConfigured: boolean
+}
+
+export interface Account {
+  id: string
+  email: string
+  provider: string
+  created_at: number
+}
+
+export interface Calendar {
+  id: string
+  accountId: string
+  summary: string
+  visible: boolean
+  color: string | null
+}
+
+export interface Person {
+  id: string
+  name: string
+  color: string
+  primaryCalendarId: string | null
+}
+
 export const api = {
   getScenes: async () => {
     const res = await fetch('/api/scenes')
@@ -22,7 +56,10 @@ export const api = {
         body.error ? `${body.error}${details ? ` — ${details}` : ''}` : 'scene save failed',
       )
     }
-    return res.json()
+    // The server has the final say on `isDefault` — it refuses to un-default
+    // the only default scene — so callers should apply this response back
+    // onto their draft instead of trusting what they sent.
+    return res.json() as Promise<{ id: string; name: string; isDefault: boolean; cells: unknown[] }>
   },
   getWidgets: async () => {
     const res = await fetch('/api/widgets')
@@ -31,25 +68,17 @@ export const api = {
       widgets: Array<{
         id: string
         name: string
+        description: string
         defaultSize: { w: number; h: number }
         minSize: { w: number; h: number }
+        defaultConfig: Record<string, unknown>
       }>
     }>
   },
   getSystem: async () => {
     const res = await fetch('/api/system')
     if (!res.ok) throw new Error('system fetch failed')
-    return res.json() as Promise<{
-      firstRunComplete: boolean
-      manualScene: string | null
-      weatherDefault: {
-        lat: number
-        lon: number
-        unit: 'celsius' | 'fahrenheit'
-        label?: string
-      } | null
-      photosAlbumId: string | null
-    }>
+    return res.json() as Promise<SystemState>
   },
   putSystem: async (patch: Record<string, unknown>) => {
     const res = await fetch('/api/system', {
@@ -58,14 +87,17 @@ export const api = {
       body: JSON.stringify(patch),
     })
     if (!res.ok) throw new Error('system save failed')
-    return res.json()
+    return res.json() as Promise<SystemState>
   },
   getPeople: async () => {
     const res = await fetch('/api/people')
     if (!res.ok) throw new Error('people fetch failed')
-    return res.json() as Promise<{ people: Array<{ id: string; name: string; color: string }> }>
+    return res.json() as Promise<{ people: Person[] }>
   },
-  putPerson: async (id: string, body: { name: string; color: string }) => {
+  putPerson: async (
+    id: string,
+    body: { name: string; color: string; primaryCalendarId?: string | null },
+  ) => {
     const res = await fetch(`/api/people/${id}`, {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
@@ -74,13 +106,22 @@ export const api = {
     if (!res.ok) throw new Error('person save failed')
     return res.json()
   },
+  deletePerson: async (id: string) => {
+    const res = await fetch(`/api/people/${id}`, { method: 'DELETE' })
+    if (!res.ok && res.status !== 204) throw new Error('person delete failed')
+  },
   oauthStart: async () => {
     const res = await fetch('/api/oauth/start', { method: 'POST' })
     if (!res.ok) {
       const body = (await res.json().catch(() => ({}))) as { error?: string }
       throw new Error(body.error ?? `oauth start failed (${res.status})`)
     }
-    return res.json() as Promise<{ userCode: string; verificationUrl: string; deviceCode: string }>
+    return res.json() as Promise<{
+      userCode: string
+      verificationUrl: string
+      deviceCode: string
+      intervalSeconds: number
+    }>
   },
   oauthPoll: async (deviceCode: string) => {
     const res = await fetch('/api/oauth/poll', {
@@ -92,39 +133,6 @@ export const api = {
     return res.json() as Promise<{
       status: 'pending' | 'ok' | 'denied' | 'expired' | 'unknown' | 'error'
     }>
-  },
-  getAlbums: async () => {
-    const res = await fetch('/api/google/albums')
-    if (!res.ok) throw new Error('albums fetch failed')
-    return res.json() as Promise<{ albums: Array<{ id: string; title: string }> }>
-  },
-  ambientRegister: async () => {
-    const res = await fetch('/api/photos/ambient/register', { method: 'POST' })
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string }
-      throw new Error(body.error ?? `ambient register failed (${res.status})`)
-    }
-    return res.json() as Promise<{
-      deviceId: string
-      settingsUri: string
-      mediaSourcesSet: boolean
-      pollIntervalSeconds: number
-    }>
-  },
-  ambientStatus: async () => {
-    const res = await fetch('/api/photos/ambient/status')
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error('ambient status failed')
-    return res.json() as Promise<{
-      deviceId: string
-      settingsUri: string
-      mediaSourcesSet: boolean
-      pollIntervalSeconds: number
-    }>
-  },
-  ambientReset: async () => {
-    const res = await fetch('/api/photos/ambient', { method: 'DELETE' })
-    if (!res.ok && res.status !== 204) throw new Error('ambient reset failed')
   },
   getSchedule: async () => {
     const res = await fetch('/api/scene-schedule')
@@ -149,8 +157,36 @@ export const api = {
     const res = await fetch(`/api/scene-schedule/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('schedule delete failed')
   },
+  getAccounts: async () => {
+    const res = await fetch('/api/accounts')
+    if (!res.ok) throw new Error('accounts fetch failed')
+    return res.json() as Promise<{ accounts: Account[] }>
+  },
+  getSyncStatus: async () => {
+    const res = await fetch('/api/sync/status')
+    if (!res.ok) throw new Error('sync status fetch failed')
+    return res.json() as Promise<{
+      lastSyncAt: number | null
+      lastError: string | null
+      eventCount: number
+    }>
+  },
   deleteAccount: async (id: string) => {
     const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('account delete failed')
+  },
+  getCalendars: async () => {
+    const res = await fetch('/api/calendars')
+    if (!res.ok) throw new Error('calendars fetch failed')
+    return res.json() as Promise<{ calendars: Calendar[] }>
+  },
+  putCalendar: async (id: string, patch: { visible?: boolean; color?: string | null }) => {
+    const res = await fetch(`/api/calendars/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(patch),
+    })
+    if (!res.ok) throw new Error('calendar save failed')
+    return res.json() as Promise<Calendar>
   },
 }

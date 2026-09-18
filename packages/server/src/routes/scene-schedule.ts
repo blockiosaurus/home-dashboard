@@ -1,10 +1,22 @@
 import type Database from 'better-sqlite3'
+import cronParser from 'cron-parser'
 import type { FastifyInstance } from 'fastify'
-import { z } from 'zod'
+import { ZodError, z } from 'zod'
+
+const { parseExpression } = cronParser
+
+const isValidCron = (expr: string): boolean => {
+  try {
+    parseExpression(expr)
+    return true
+  } catch {
+    return false
+  }
+}
 
 const Body = z.object({
   sceneId: z.string().min(1),
-  cronExpr: z.string().min(1),
+  cronExpr: z.string().min(1).refine(isValidCron, { message: 'invalid cron expression' }),
   priority: z.number().int().default(0),
 })
 
@@ -25,8 +37,20 @@ export const registerSceneScheduleRoutes = (app: FastifyInstance, db: Database.D
     }
   })
 
-  app.put<{ Params: { id: string } }>('/api/scene-schedule/:id', async (req) => {
-    const body = Body.parse(req.body)
+  app.put<{ Params: { id: string } }>('/api/scene-schedule/:id', async (req, reply) => {
+    let body: z.infer<typeof Body>
+    try {
+      body = Body.parse(req.body)
+    } catch (err) {
+      if (err instanceof ZodError) {
+        reply.code(422)
+        return {
+          error: 'invalid rule',
+          issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+        }
+      }
+      throw err
+    }
     db.prepare(
       `INSERT INTO scene_schedule (id, scene_id, cron_expr, priority)
        VALUES (?, ?, ?, ?)

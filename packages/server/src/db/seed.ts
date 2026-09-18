@@ -79,7 +79,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       y: 7,
       w: 3,
       h: 3,
-      config: { instanceId: 'chores-1', title: 'Chores', initial: [] },
+      config: { title: 'Chores', initial: [] },
     },
     {
       instanceId: 'meal-1',
@@ -88,7 +88,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       y: 7,
       w: 2,
       h: 3,
-      config: { instanceId: 'meal-1', title: 'Meals' },
+      config: { title: 'Meals' },
     },
     {
       instanceId: 'notes-1',
@@ -97,7 +97,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       y: 10,
       w: 5,
       h: 2,
-      config: { instanceId: 'notes-1', title: 'Notes' },
+      config: { title: 'Notes' },
     },
     {
       instanceId: 'packages-1',
@@ -106,7 +106,7 @@ export const seedDefaultScene = (db: Database.Database) => {
       y: 10,
       w: 3,
       h: 2,
-      config: { instanceId: 'packages-1', title: 'Packages' },
+      config: { title: 'Packages' },
     },
   ]
   const insert = db.prepare(
@@ -119,6 +119,6 @@ export const seedDefaultScene = (db: Database.Database) => {
   const rule = db.prepare(
     'INSERT INTO scene_schedule (id, scene_id, cron_expr, priority) VALUES (?, ?, ?, ?)',
   )
-  rule.run('sleep-22', 'sleep', '0 22 * * *', 10)
-  rule.run('wake-07', 'default', '0 7 * * *', 10)
+  rule.run('sleep-start', 'sleep', '0 22 * * *', 10)
+  rule.run('sleep-end', 'default', '0 7 * * *', 10)
 }

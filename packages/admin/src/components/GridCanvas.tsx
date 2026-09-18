@@ -1,6 +1,6 @@
 import type { LayoutCell } from '@dashboard/core'
 import { GRID_COLS, GRID_ROWS } from '@dashboard/core'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import RGL, { WidthProvider } from 'react-grid-layout'
 import type ReactGridLayout from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -15,6 +15,8 @@ type Layout = ReactGridLayout.Layout
 
 export interface GridCanvasProps {
   cells: LayoutCell[]
+  /** Widget id -> display name, so tiles read "Meal Plan" and not "meal-plan". */
+  names: Record<string, string>
   onChange: (cells: LayoutCell[]) => void
   onSelect: (instanceId: string | null) => void
   selectedInstanceId: string | null
@@ -35,7 +37,13 @@ const sameLayout = (a: Layout[], b: Layout[]): boolean => {
   return true
 }
 
-export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: GridCanvasProps) => {
+export const GridCanvas = ({
+  cells,
+  names,
+  onChange,
+  onSelect,
+  selectedInstanceId,
+}: GridCanvasProps) => {
   // Hold the layout locally so RGL can manage positions during drag/resize
   // without us echoing every interim frame back through props and triggering
   // a re-sync. We push to the parent only on drag/resize stop.
@@ -49,6 +57,31 @@ export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: Gr
     setLayout((prev) => (sameLayout(prev, next) ? prev : next))
   }, [cells])
 
+  // The canvas keeps the kiosk's 1080×1920 portrait aspect regardless of how
+  // wide the admin pane is: row height is derived from the wrapper's own
+  // measured width rather than a fixed pixel value, so 12 rows always add up
+  // to the right height whether the admin is full-width on a laptop or
+  // squeezed onto a phone. WidthProvider (below) still owns column math —
+  // this observer only feeds `rowHeight`.
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState(600)
+
+  useEffect(() => {
+    const el = wrapperRef.current
+    if (!el) return
+    const observer = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width
+      if (w && w > 0) setWidth(w)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // Guard against a zero/undefined width (e.g. a hidden tab) by falling back
+  // to the last known-good width rather than producing rowHeight 0.
+  const safeWidth = width > 0 ? width : 600
+  const rowHeight = Math.round(((safeWidth / GRID_COLS) * 1920) / 1080)
+
   const persist = (next: Layout[]) => {
     onChange(
       cells.map((c) => {
@@ -60,40 +93,42 @@ export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: Gr
   }
 
   return (
-    <ResponsiveRGL
-      className="rounded-2xl bg-white shadow-[var(--shadow-card)]"
-      cols={GRID_COLS}
-      maxRows={GRID_ROWS}
-      rowHeight={40}
-      layout={layout}
-      // Track live moves in local state so RGL has stable reference between
-      // frames. Don't notify the parent until interaction ends.
-      onLayoutChange={(next) => setLayout(next)}
-      onDragStop={(next) => persist(next)}
-      onResizeStop={(next) => persist(next)}
-      compactType={null}
-      verticalCompact={false}
-      preventCollision={false}
-      allowOverlap
-      isBounded
-      isDraggable
-      isResizable
-      useCSSTransforms
-    >
-      {cells.map((c) => (
-        <div
-          key={c.instanceId}
-          className={`flex items-center justify-center rounded-lg border-2 ${
-            selectedInstanceId === c.instanceId
-              ? 'border-[var(--accent)] bg-[var(--accent)]/10'
-              : 'border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5'
-          } text-xs font-semibold text-[var(--accent)]`}
-          onMouseDown={() => onSelect(c.instanceId)}
-          onTouchStart={() => onSelect(c.instanceId)}
-        >
-          {c.widgetId}
-        </div>
-      ))}
-    </ResponsiveRGL>
+    <div ref={wrapperRef}>
+      <ResponsiveRGL
+        className="rounded-2xl bg-white shadow-[var(--shadow-card)]"
+        cols={GRID_COLS}
+        maxRows={GRID_ROWS}
+        rowHeight={rowHeight}
+        layout={layout}
+        // Track live moves in local state so RGL has stable reference between
+        // frames. Don't notify the parent until interaction ends.
+        onLayoutChange={(next) => setLayout(next)}
+        onDragStop={(next) => persist(next)}
+        onResizeStop={(next) => persist(next)}
+        compactType={null}
+        verticalCompact={false}
+        preventCollision={false}
+        allowOverlap
+        isBounded
+        isDraggable
+        isResizable
+        useCSSTransforms
+      >
+        {cells.map((c) => (
+          <div
+            key={c.instanceId}
+            className={`flex items-center justify-center rounded-lg border-2 ${
+              selectedInstanceId === c.instanceId
+                ? 'border-[var(--accent)] bg-[var(--accent)]/10'
+                : 'border-dashed border-[var(--accent)]/40 bg-[var(--accent)]/5'
+            } text-xs font-semibold text-[var(--accent)]`}
+            onMouseDown={() => onSelect(c.instanceId)}
+            onTouchStart={() => onSelect(c.instanceId)}
+          >
+            {names[c.widgetId] ?? c.widgetId}
+          </div>
+        ))}
+      </ResponsiveRGL>
+    </div>
   )
 }

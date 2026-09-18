@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # scripts/install.sh — idempotent installer for Raspberry Pi OS Bookworm (64-bit).
 #
-# Usage (as root): sudo scripts/install.sh [--yes] [--repo-dir PATH]
+# Usage (as root):
+#   sudo scripts/install.sh [--yes] [--repo-dir PATH] [--no-kiosk] \
+#     [--google-client-id ID] [--google-client-secret SECRET]
 #
 # Expects the working tree to live somewhere we can read; copies sources to
 # /opt/dashboard, creates a `dashboard` system user with /var/lib/dashboard
@@ -13,16 +15,29 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 ASSUME_YES=0
+NO_KIOSK=0
+GOOGLE_CLIENT_ID_ARG=""
+GOOGLE_CLIENT_ID_ARG_SET=0
+GOOGLE_CLIENT_SECRET_ARG=""
+GOOGLE_CLIENT_SECRET_ARG_SET=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --yes|-y) ASSUME_YES=1; shift ;;
     --repo-dir) REPO_DIR="$2"; shift 2 ;;
+    --no-kiosk) NO_KIOSK=1; shift ;;
+    --google-client-id) GOOGLE_CLIENT_ID_ARG="$2"; GOOGLE_CLIENT_ID_ARG_SET=1; shift 2 ;;
+    --google-client-secret) GOOGLE_CLIENT_SECRET_ARG="$2"; GOOGLE_CLIENT_SECRET_ARG_SET=1; shift 2 ;;
     -h|--help)
       cat <<EOF
-Usage: sudo $0 [--yes] [--repo-dir PATH]
-  --yes        Skip prompts.
-  --repo-dir   Source repo path (defaults to script's parent).
+Usage: sudo $0 [--yes] [--repo-dir PATH] [--no-kiosk] [--google-client-id ID] [--google-client-secret SECRET]
+  --yes                     Skip prompts.
+  --repo-dir PATH           Source repo path (defaults to script's parent).
+  --no-kiosk                Don't start cage.service after install.
+  --google-client-id ID     Google OAuth client id; written to /etc/dashboard/env
+                            (only that line changes, independent of --google-client-secret).
+  --google-client-secret S  Google OAuth client secret; written to /etc/dashboard/env
+                            (only that line changes, independent of --google-client-id).
 EOF
       exit 0 ;;
     *) echo "unknown arg: $1" 1>&2; exit 2 ;;
@@ -171,19 +186,94 @@ install -d -m 0755 /etc/dashboard
 if [ ! -f /etc/dashboard/env ]; then
   cat >/etc/dashboard/env <<'EOF'
 # Place secrets here. After editing run:
-#   sudo systemctl restart dashboard cage
+#   sudo systemctl restart dashboard
 # GOOGLE_CLIENT_ID=
 # GOOGLE_CLIENT_SECRET=
 EOF
   chmod 0640 /etc/dashboard/env
   chown root:"$SERVICE_GROUP" /etc/dashboard/env
 fi
+
+# Google OAuth credentials: take them from flags, prompt for whichever one is
+# missing (unless --yes). Each of GOOGLE_CLIENT_ID= / GOOGLE_CLIENT_SECRET= is
+# rewritten independently and ONLY when its own value is non-empty — a value
+# that was never provided (no flag, blank at the prompt, or skipped entirely
+# under --yes) leaves that line exactly as it already was (still commented in
+# the template, or whatever was set on a previous run). This avoids a footgun
+# where updating just one credential would blank out the other.
+GOOGLE_CLIENT_ID_VALUE="$GOOGLE_CLIENT_ID_ARG"
+GOOGLE_CLIENT_SECRET_VALUE="$GOOGLE_CLIENT_SECRET_ARG"
+if [ "$ASSUME_YES" != "1" ]; then
+  if [ -t 0 ]; then
+    if [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ]; then
+      read -r -p "Google OAuth client id (leave blank to skip): " GOOGLE_CLIENT_ID_VALUE || true
+    fi
+    if [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
+      read -rs -p "Google OAuth client secret (leave blank to skip): " GOOGLE_CLIENT_SECRET_VALUE || true
+      echo
+    fi
+  elif [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ] || [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
+    # stdin isn't a terminal (piped, ssh host cmd, cron) — a bare `read` would
+    # hit EOF and, under `set -e`, take the whole installer down with it.
+    # Skip the prompt instead of risking that.
+    log_warn "stdin is not a terminal; skipping the Google OAuth prompt — add credentials later by editing /etc/dashboard/env"
+  fi
+fi
+
+ENV_CHANGED=0
+if [ -n "$GOOGLE_CLIENT_ID_VALUE" ] || [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ]; then
+  HAVE_ID=0
+  [ -n "$GOOGLE_CLIENT_ID_VALUE" ] && HAVE_ID=1
+  HAVE_SECRET=0
+  [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ] && HAVE_SECRET=1
+  ENV_TMP="$(mktemp)"
+  trap 'rm -f "$ENV_TMP"' EXIT
+  # Credential values go through the environment (ENVIRON), not `awk -v`:
+  # `-v var=value`/command-line assignments run C-style backslash-escape
+  # processing on the string, so a secret containing `\n`, `\t`, or `\\`
+  # would come out mangled (split across lines, truncated, or re-escaped).
+  # Environment variables are handed to awk unprocessed.
+  GOOGLE_ID="$GOOGLE_CLIENT_ID_VALUE" GOOGLE_SECRET="$GOOGLE_CLIENT_SECRET_VALUE" \
+    awk -v have_id="$HAVE_ID" -v have_secret="$HAVE_SECRET" '
+    have_id == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" ENVIRON["GOOGLE_ID"]; id_done = 1; next }
+    have_secret == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" ENVIRON["GOOGLE_SECRET"]; secret_done = 1; next }
+    { print }
+    END {
+      if (have_id == 1 && !id_done) print "GOOGLE_CLIENT_ID=" ENVIRON["GOOGLE_ID"]
+      if (have_secret == 1 && !secret_done) print "GOOGLE_CLIENT_SECRET=" ENVIRON["GOOGLE_SECRET"]
+    }
+  ' /etc/dashboard/env >"$ENV_TMP"
+  if cmp -s /etc/dashboard/env "$ENV_TMP"; then
+    log_ok "Google OAuth credentials already up to date in /etc/dashboard/env"
+  else
+    install -m 0640 -o root -g "$SERVICE_GROUP" "$ENV_TMP" /etc/dashboard/env
+    ENV_CHANGED=1
+    log_ok "Google OAuth credentials written to /etc/dashboard/env"
+  fi
+  rm -f "$ENV_TMP"
+  trap - EXIT
+else
+  log_warn "Google OAuth credentials skipped — add them later by editing /etc/dashboard/env"
+fi
+
 systemctl daemon-reload
 systemctl enable dashboard.service cage.service
+# dashboard.service always gets restarted here regardless of ENV_CHANGED:
+# steps 6-7 just rsynced and rebuilt the app from source, so the running
+# process (if any) is already serving stale code and needs a reload on
+# every install/re-run — not only when credentials changed. See
+# scripts/update.sh, which restarts unconditionally for the same reason.
 systemctl restart dashboard.service
-# cage requires a graphical target; we don't restart it here to avoid kicking
-# someone out of a current X/Wayland session during a re-run.
-log_ok "systemd units installed and dashboard.service restarted"
+if [ "$NO_KIOSK" = "1" ]; then
+  log_warn "--no-kiosk passed; not starting cage.service"
+else
+  systemctl is-active --quiet cage || systemctl start cage
+fi
+if [ "$ENV_CHANGED" = "1" ]; then
+  log_ok "systemd units installed; dashboard.service restarted (new build + updated credentials)"
+else
+  log_ok "systemd units installed; dashboard.service restarted (new build)"
+fi
 
 # ---- 9. Avahi ----------------------------------------------------------------
 log_step "9/11 Configuring Avahi mDNS"
@@ -205,10 +295,27 @@ log_ok "cage/chromium presence checked"
 # ---- 11. Final summary -------------------------------------------------------
 log_step "11/11 Done"
 HOSTNAME_FQDN="$(hostname).local"
+# The server listens on PORT (default 3000) and is not behind a reverse proxy,
+# so every printed URL needs the port — the touchscreen shows it too.
+ADMIN_PORT="$(sed -n 's/^PORT=//p' /etc/dashboard/env 2>/dev/null | tr -d "\"' " | tail -n1)"
+ADMIN_PORT="${ADMIN_PORT:-3000}"
+KIOSK_NOTE=""
+if [ "$NO_KIOSK" = "1" ]; then
+  KIOSK_NOTE="
+Kiosk not started (--no-kiosk passed). Start it with:
+  sudo systemctl start cage
+"
+fi
 cat <<EOF
 
 ${COLOR_OK}Family Dashboard installed.${COLOR_RESET}
 
+Reach the admin UI from any device on this network:
+  http://$HOSTNAME_FQDN:$ADMIN_PORT/admin/  (mDNS)
+  http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT/admin/  (IP fallback)
+
+Look at the touchscreen: it shows this same address and a QR code.
+$KIOSK_NOTE
 Service status:   sudo systemctl status dashboard cage avahi-daemon
 Logs (Node):      sudo journalctl -u dashboard -f
 Logs (kiosk):     sudo journalctl -u cage -f
@@ -216,14 +323,7 @@ Data directory:   $DATA_DIR
 Source tree:      $INSTALL_DIR
 Env file:         /etc/dashboard/env  (put GOOGLE_CLIENT_ID/SECRET here)
 
-Reach the admin UI from any device on this network:
-  http://$HOSTNAME_FQDN/admin/  (mDNS)
-  http://$(hostname -I | awk '{print $1}'):3000/admin/  (IP fallback)
-
 After editing /etc/dashboard/env, run:
-  sudo systemctl restart dashboard cage
-
-To start the kiosk now (will switch the active display):
-  sudo systemctl start cage
+  sudo systemctl restart dashboard
 
 EOF

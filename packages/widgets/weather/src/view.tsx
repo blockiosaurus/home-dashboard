@@ -1,15 +1,24 @@
 export interface WeatherConfig {
-  lat: number
-  lon: number
+  lat?: number
+  lon?: number
   unit?: 'celsius' | 'fahrenheit'
   label?: string
 }
 
-export interface WeatherData {
+export interface WeatherReading {
   current: { temperature: number; weatherCode: number; isDay: boolean; windSpeed: number }
   today: { high: number; low: number }
   fetchedAt: number
 }
+
+/** The backend publishes `{ error: 'no-location' }` instead of a reading when
+ * the instance has no coordinates yet, so the view can say so rather than
+ * spinning on "Loading weather..." forever. */
+export interface WeatherNoLocation {
+  error: 'no-location'
+}
+
+export type WeatherData = WeatherReading | WeatherNoLocation
 
 const codeToEmoji = (code: number, isDay: boolean): string => {
   if (code === 0) return isDay ? '☀️' : '🌙'
@@ -34,6 +43,13 @@ export const WeatherView = ({
     return (
       <div className="flex h-full items-center justify-center text-[var(--text-dim)]">
         Loading weather…
+      </div>
+    )
+  }
+  if ('error' in data) {
+    return (
+      <div className="flex h-full items-center justify-center p-3 text-center text-sm text-[var(--text-dim)]">
+        Pick a location for this widget in the scene editor.
       </div>
     )
   }

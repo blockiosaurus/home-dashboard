@@ -25,7 +25,7 @@ const Cell = ({ cell }: { cell: LayoutCell }) => {
       className="bg-white shadow-[var(--shadow-card)]"
       data-instance={cell.instanceId}
     >
-      {view ? <view.Render config={cell.config} data={data} /> : null}
+      {view ? <view.Render instanceId={cell.instanceId} config={cell.config} data={data} /> : null}
     </div>
   )
 }

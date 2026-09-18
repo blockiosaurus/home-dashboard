@@ -5,7 +5,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@dashboard/core": "workspace:*",
@@ -20,6 +21,7 @@
     "@dashboard/widget-packages": "workspace:*",
     "@dashboard/widget-weather": "workspace:*",
     "@tanstack/react-query": "5.62.7",
+    "qrcode.react": "4.1.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "zustand": "5.0.2"

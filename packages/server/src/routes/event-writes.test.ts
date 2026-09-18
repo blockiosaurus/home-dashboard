@@ -1,9 +1,19 @@
-import { describe, expect, it } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
+
+let dir: string
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'event-writes-'))
+})
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true })
+})
 
 describe('event writes', () => {
   it('POST /api/events queues an outbox entry and updates cache optimistically', async () => {
-    const dir = `/tmp/ew-${Date.now()}`
     const app = await buildApp({ dataDir: dir })
     // Seed a calendar so the FK reference works
     app.db

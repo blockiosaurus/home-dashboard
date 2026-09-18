@@ -1,11 +1,11 @@
 import { fetch } from 'undici'
 
 // Calendar gives us two-way event sync. We don't request any Photos scope:
-//   - photoslibrary.readonly was deprecated for general use on 2025-03-31
-//   - photosambient.mediaitems requires Google's Partner Program approval
-//     (intended for hardware OEMs, not hobbyists — returns 403 on devices.create
-//     for unapproved clients)
-// The slideshow widget uses a local photos folder instead (see config.localPhotosDir).
+// photoslibrary.readonly was deprecated for general use on 2025-03-31, and the
+// second-screen media API that could replace it needs Google's Partner
+// Program approval (intended for hardware OEMs, not hobbyists — it 403s on
+// device registration for unapproved clients). The slideshow widget uses a
+// local photos folder instead (see config.localPhotosDir).
 const SCOPES = ['https://www.googleapis.com/auth/calendar'].join(' ')
 
 export interface DeviceFlowStart {

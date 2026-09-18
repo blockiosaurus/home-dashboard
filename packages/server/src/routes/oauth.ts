@@ -11,7 +11,16 @@ interface PendingFlow extends DeviceFlowStart {
 export const registerOauthRoutes = (
   app: FastifyInstance,
   db: Database.Database,
-  config: { clientId?: string; clientSecret?: string; machineId: string },
+  config: {
+    clientId?: string
+    clientSecret?: string
+    machineId: string
+    /** Called after a new account row is inserted (e.g. to kick off an
+     * immediate sync tick so a calendar picker isn't empty). Errors are
+     * caught and logged here — a failure must never surface to the caller of
+     * `/api/oauth/poll`. */
+    onAccountAdded?: () => Promise<void>
+  },
 ) => {
   const pending = new Map<string, PendingFlow>()
 
@@ -28,6 +37,7 @@ export const registerOauthRoutes = (
         verificationUrl: flow.verificationUrl,
         expiresAt: flow.expiresAt,
         deviceCode: flow.deviceCode,
+        intervalSeconds: flow.intervalSeconds,
       }
     } catch (err) {
       app.log.error({ err }, 'device flow start failed')
@@ -66,6 +76,13 @@ export const registerOauthRoutes = (
       `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
        VALUES (?, 'google', '', ?, ?, ?)`,
     ).run(id, encryptedRefresh, 'calendar', Date.now())
+    if (config.onAccountAdded) {
+      try {
+        await config.onAccountAdded()
+      } catch (err) {
+        app.log.warn({ err }, 'onAccountAdded failed')
+      }
+    }
     return { status: 'ok', accountId: id }
   })
 }

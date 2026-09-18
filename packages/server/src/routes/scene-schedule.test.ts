@@ -28,4 +28,18 @@ describe('scene-schedule routes', () => {
     expect(del.statusCode).toBe(204)
     await app.close()
   })
+
+  it('PUT rejects a malformed cron expression with 422', async () => {
+    const app = await buildApp({ dataDir: dir })
+    const put = await app.inject({
+      method: 'PUT',
+      url: '/api/scene-schedule/r1',
+      payload: { sceneId: 'default', cronExpr: 'NaN 0 * * *', priority: 10 },
+    })
+    expect(put.statusCode).toBe(422)
+    const list = await app.inject({ method: 'GET', url: '/api/scene-schedule' })
+    const rules = (list.json() as { rules: Array<{ id: string }> }).rules
+    expect(rules.find((r) => r.id === 'r1')).toBeUndefined()
+    await app.close()
+  })
 })

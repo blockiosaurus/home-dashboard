@@ -9,9 +9,11 @@ const ConfigSchema = z.object({
 const definition: WidgetDefinition<z.infer<typeof ConfigSchema>> = {
   id: 'calendar',
   name: 'Calendar',
+  description: "This week's events from your calendars.",
   defaultSize: { w: 8, h: 6 },
   minSize: { w: 4, h: 4 },
   configSchema: ConfigSchema,
+  defaultConfig: { view: 'week' },
 }
 
 export default { ...definition, Render: CalendarView }

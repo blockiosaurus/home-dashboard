@@ -37,4 +37,38 @@ describe('people routes', () => {
     expect((after.json() as { people: unknown[] }).people).toHaveLength(0)
     await app.close()
   })
+
+  it('PUT accepts an explicit null primaryCalendarId', async () => {
+    const app = await buildApp({ dataDir: dir })
+    app.db
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible)
+         VALUES ('cal1', 'acc1', 'gcal1', 'Mom', 1)`,
+      )
+      .run()
+    const withCalendar = await app.inject({
+      method: 'PUT',
+      url: '/api/people/p1',
+      payload: { name: 'Mom', color: '#ff7eb6', primaryCalendarId: 'cal1' },
+    })
+    expect(withCalendar.statusCode).toBe(200)
+    const list1 = await app.inject({ method: 'GET', url: '/api/people' })
+    expect(
+      (list1.json() as { people: Array<{ primaryCalendarId: string | null }> }).people[0]
+        ?.primaryCalendarId,
+    ).toBe('cal1')
+
+    const cleared = await app.inject({
+      method: 'PUT',
+      url: '/api/people/p1',
+      payload: { name: 'Mom', color: '#ff7eb6', primaryCalendarId: null },
+    })
+    expect(cleared.statusCode).toBe(200)
+    const list2 = await app.inject({ method: 'GET', url: '/api/people' })
+    expect(
+      (list2.json() as { people: Array<{ primaryCalendarId: string | null }> }).people[0]
+        ?.primaryCalendarId,
+    ).toBeNull()
+    await app.close()
+  })
 })

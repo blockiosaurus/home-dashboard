@@ -26,9 +26,6 @@ importers:
       '@tanstack/react-query':
         specifier: 5.62.7
         version: 5.62.7(react@19.0.0)
-      qrcode.react:
-        specifier: 4.1.0
-        version: 4.1.0(react@19.0.0)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -121,6 +118,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.62.7
         version: 5.62.7(react@19.0.0)
+      qrcode.react:
+        specifier: 4.1.0
+        version: 4.1.0(react@19.0.0)
       react:
         specifier: 19.0.0
         version: 19.0.0
@@ -158,6 +158,27 @@ importers:
       '@dashboard/core':
         specifier: workspace:*
         version: link:../core
+      '@dashboard/widget-agenda':
+        specifier: workspace:*
+        version: link:../widgets/agenda
+      '@dashboard/widget-calendar':
+        specifier: workspace:*
+        version: link:../widgets/calendar
+      '@dashboard/widget-chores':
+        specifier: workspace:*
+        version: link:../widgets/chores
+      '@dashboard/widget-clock':
+        specifier: workspace:*
+        version: link:../widgets/clock
+      '@dashboard/widget-meal-plan':
+        specifier: workspace:*
+        version: link:../widgets/meal-plan
+      '@dashboard/widget-notes':
+        specifier: workspace:*
+        version: link:../widgets/notes
+      '@dashboard/widget-packages':
+        specifier: workspace:*
+        version: link:../widgets/packages
       '@dashboard/widget-slideshow':
         specifier: workspace:*
         version: link:../widgets/slideshow
