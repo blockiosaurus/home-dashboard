@@ -83,16 +83,31 @@ export const SleepSchedulePanel = () => {
     }
   }, [initialized, schedule.data, scenes.data, startRule, endRule, fallbackSleepScene])
 
+  // The sleep scene to switch to at night: whatever is already configured, or
+  // the first scene that isn't the daytime default. With only one scene there
+  // is no candidate at all and sleep mode can't be turned on.
+  const sleepSceneCandidateId = sleepSceneId || fallbackSleepScene?.id || ''
+  const scenesLoaded = Boolean(scenes.data)
+  const canEnableSleep = sleepSceneCandidateId !== ''
+
   const del = useMutation({
     mutationFn: api.deleteScheduleRule,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule'] }),
   })
 
+  // `revertTo` on the mutation variables is set only by the on/off toggle: the
+  // switch flips optimistically, so a failed save has to put it back.
   const save = useMutation({
     mutationFn: async (
       next:
-        | { enabled: false }
-        | { enabled: true; sleepSceneId: string; startCron: string; endCron: string },
+        | { enabled: false; revertTo?: boolean }
+        | {
+            enabled: true
+            sleepSceneId: string
+            startCron: string
+            endCron: string
+            revertTo?: boolean
+          },
     ) => {
       if (usingLegacyIds) {
         await Promise.all([
@@ -119,6 +134,9 @@ export const SleepSchedulePanel = () => {
       ])
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule'] }),
+    onError: (_err, next) => {
+      if (next.revertTo !== undefined) setEnabled(next.revertTo)
+    },
   })
 
   /** Saves the sleep rules from the current form fields, unless `startTime`
@@ -126,23 +144,35 @@ export const SleepSchedulePanel = () => {
    * or cleared) — in that case the field's local state was already updated
    * by the caller so the input reflects what was typed, but nothing is sent
    * to the server, since `cronFromTime` can't produce a valid cron from it. */
-  const trySave = (next: { sleepSceneId: string; startTime: string; endTime: string }) => {
+  const trySave = (
+    next: { sleepSceneId: string; startTime: string; endTime: string },
+    revertTo?: boolean,
+  ) => {
     if (!TIME_RE.test(next.startTime) || !TIME_RE.test(next.endTime)) return
     const startCron = cronFromTime(next.startTime)
     const endCron = cronFromTime(next.endTime)
     if (!startCron || !endCron) return
-    save.mutate({ enabled: true, sleepSceneId: next.sleepSceneId, startCron, endCron })
+    save.mutate({
+      enabled: true,
+      sleepSceneId: next.sleepSceneId,
+      startCron,
+      endCron,
+      ...(revertTo !== undefined ? { revertTo } : {}),
+    })
   }
 
   const toggle = (next: boolean) => {
-    const effectiveSleepSceneId = sleepSceneId || fallbackSleepScene?.id || ''
+    // Without a second scene there is nothing to switch to at night; the
+    // toggle is disabled in that case, so this is only belt and braces
+    // against posting an empty sceneId the server would reject.
+    if (next && !sleepSceneCandidateId) return
     setEnabled(next)
     if (!next) {
-      save.mutate({ enabled: false })
+      save.mutate({ enabled: false, revertTo: true })
       return
     }
-    setSleepSceneId(effectiveSleepSceneId)
-    trySave({ sleepSceneId: effectiveSleepSceneId, startTime, endTime })
+    setSleepSceneId(sleepSceneCandidateId)
+    trySave({ sleepSceneId: sleepSceneCandidateId, startTime, endTime }, false)
   }
 
   const updateSceneAndSave = (nextSceneId: string) => {
@@ -170,11 +200,18 @@ export const SleepSchedulePanel = () => {
           <span>Sleep mode</span>
           <input
             type="checkbox"
-            className="h-6 w-11 cursor-pointer"
+            className="h-6 w-11 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
             checked={enabled}
+            disabled={!canEnableSleep}
             onChange={(e) => toggle(e.target.checked)}
           />
         </label>
+        {scenesLoaded && !canEnableSleep ? (
+          <p className="text-sm text-[var(--text-dim)]">
+            Add a second scene in the editor to use sleep mode.
+          </p>
+        ) : null}
+        {save.isError ? <p className="text-xs text-red-600">Couldn't save. Try again.</p> : null}
         {enabled ? (
           <>
             <label className="flex flex-col gap-1 text-sm">
@@ -236,6 +273,7 @@ export const SleepSchedulePanel = () => {
               </Button>
             </div>
           ))}
+          {del.isError ? <p className="text-xs text-red-600">Couldn't save. Try again.</p> : null}
         </div>
       </details>
     </Card>

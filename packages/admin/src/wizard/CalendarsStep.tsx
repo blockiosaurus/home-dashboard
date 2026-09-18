@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { CalendarList } from '../components/CalendarList'
 import { WizardCard, WizardFooter } from './WizardCard'
@@ -20,6 +20,16 @@ export const CalendarsStep = ({
   onContinue: () => void
 }) => {
   const startedAt = useRef(Date.now())
+  // Held in state, not derived during render: a refetch that returns another
+  // structurally-equal empty list doesn't re-render, so a render-time
+  // `Date.now()` comparison would never flip and this message would never
+  // appear. A timer guarantees exactly one re-render when the window is up.
+  const [timedOut, setTimedOut] = useState(false)
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), POLL_TIMEOUT_MS)
+    return () => clearTimeout(t)
+  }, [])
+
   const calendars = useQuery({
     queryKey: ['calendars'],
     queryFn: api.getCalendars,
@@ -32,7 +42,6 @@ export const CalendarsStep = ({
   })
 
   const list = calendars.data?.calendars ?? []
-  const timedOut = list.length === 0 && Date.now() - startedAt.current >= POLL_TIMEOUT_MS
 
   return (
     <WizardCard

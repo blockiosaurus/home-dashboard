@@ -77,7 +77,8 @@ export const AccountsPanel = () => {
               <span>Not synced yet</span>
             ) : (
               <span>
-                Last synced {relativeTime(status.data.lastSyncAt)} · {status.data.eventCount} events
+                Last synced {relativeTime(status.data.lastSyncAt)} · {status.data.eventCount}{' '}
+                {status.data.eventCount === 1 ? 'event' : 'events'}
               </span>
             )
           ) : null}

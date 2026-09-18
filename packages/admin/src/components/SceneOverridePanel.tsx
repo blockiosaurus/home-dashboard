@@ -32,6 +32,11 @@ export const SceneOverridePanel = () => {
     },
   })
 
+  // A failed save used to leave the select showing the value the user picked
+  // with nothing saved behind it, so say so inline rather than silently.
+  const saveFailed = save.isError
+  const redoFailed = redoWizard.isError
+
   return (
     <Card>
       <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-dim)]">
@@ -54,6 +59,7 @@ export const SceneOverridePanel = () => {
           </select>
         </label>
         {saved ? <p className="text-xs text-green-600">Saved</p> : null}
+        {saveFailed ? <p className="text-xs text-red-600">Couldn't save. Try again.</p> : null}
         <div className="border-t border-[var(--text-dim)]/20 pt-3">
           <p className="mb-2 text-xs text-[var(--text-dim)]">
             Want to go through setup again? Your Google connection and data are kept.
@@ -65,6 +71,9 @@ export const SceneOverridePanel = () => {
           >
             {redoWizard.isPending ? 'Resetting…' : 'Re-run setup'}
           </Button>
+          {redoFailed ? (
+            <p className="mt-2 text-xs text-red-600">Couldn't save. Try again.</p>
+          ) : null}
         </div>
       </div>
     </Card>

@@ -1,7 +1,17 @@
 import { Input } from '@dashboard/ui'
 import type { Calendar } from '../api'
 
-export const PERSON_COLORS = ['#ff7eb6', '#5b6cff', '#ffb13b', '#36c47a']
+/** The four picker colors, with the plain-English name shown in the select —
+ * the hex stays the stored value (and the swatch), but a family member picking
+ * "their colour" shouldn't have to read hex codes. */
+export const PERSON_COLOR_OPTIONS = [
+  { value: '#ff7eb6', name: 'Pink' },
+  { value: '#5b6cff', name: 'Blue' },
+  { value: '#ffb13b', name: 'Orange' },
+  { value: '#36c47a', name: 'Green' },
+] as const
+
+export const PERSON_COLORS = PERSON_COLOR_OPTIONS.map((c) => c.value)
 
 export interface PersonRowValue {
   id: string
@@ -57,9 +67,9 @@ export const PersonRow = ({
       }}
       className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-2 py-2 text-sm"
     >
-      {PERSON_COLORS.map((c) => (
-        <option key={c} value={c}>
-          {c}
+      {PERSON_COLOR_OPTIONS.map((c) => (
+        <option key={c.value} value={c.value}>
+          {c.name}
         </option>
       ))}
     </select>

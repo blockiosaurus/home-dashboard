@@ -8,6 +8,20 @@ import { Wizard } from './routes/Wizard'
 
 const qc = new QueryClient()
 
+/** The admin is opened from two very different places: a phone, where the
+ * device's own keyboard already works and our overlay would sit on top of it
+ * covering the buttons, and the kiosk browser on the Pi's touchscreen, which
+ * has no keyboard of its own and reaches the admin over localhost. So the
+ * shared on-screen keyboard is opt-in here — `?keyboard=1` or localhost —
+ * rather than following the `(pointer: coarse)` auto-detection the kiosk uses. */
+const oskEnabled = (): boolean => {
+  if (typeof window === 'undefined') return false
+  const param = new URLSearchParams(window.location.search).get('keyboard')
+  if (param === '1' || param === 'true') return true
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1'
+}
+
 const Shell = () => {
   const { data: system } = useQuery({ queryKey: ['system'], queryFn: api.getSystem })
   // Wait for a fresh read before deciding: the wizard's Finish step seeds this
@@ -59,6 +73,6 @@ export const App = () => (
         <Route path="*" element={<Shell />} />
       </Routes>
     </Router>
-    <OnScreenKeyboard />
+    <OnScreenKeyboard enabled={oskEnabled()} />
   </QueryClientProvider>
 )

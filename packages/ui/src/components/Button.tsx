@@ -15,7 +15,7 @@ const styles: Record<NonNullable<ButtonProps['variant']>, string> = {
 export const Button = ({ variant = 'primary', className = '', children, ...rest }: ButtonProps) => (
   <button
     type="button"
-    className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${styles[variant]} ${className}`}
+    className={`min-h-10 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${styles[variant]} ${className}`}
     {...rest}
   >
     {children}

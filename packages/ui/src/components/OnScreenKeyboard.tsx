@@ -70,7 +70,10 @@ export const OnScreenKeyboard = ({ enabled }: OnScreenKeyboardProps) => {
   //   2. ?keyboard=1 in the URL (force on — for kiosks where auto-detect fails)
   //   3. ?keyboard=0 in the URL (force off — for desktop dev)
   //   4. (pointer: coarse) media query — auto-detect touch devices
-  // (4) is unreliable in cage/wlroots Chromium on the Pi, hence (2).
+  // (4) is unreliable in cage/wlroots Chromium on the Pi, hence (2). It also
+  // matches any phone, where the device's own keyboard is better than ours —
+  // so the admin SPA passes an explicit `enabled` (see admin/src/App.tsx) and
+  // only the kiosk relies on (2)-(4).
   const detected = (() => {
     if (typeof window === 'undefined') return false
     const params = new URLSearchParams(window.location.search)

@@ -49,7 +49,7 @@ export const WeatherView = ({
   if ('error' in data) {
     return (
       <div className="flex h-full items-center justify-center p-3 text-center text-sm text-[var(--text-dim)]">
-        Set a location in Settings
+        Pick a location for this widget in the scene editor.
       </div>
     )
   }
