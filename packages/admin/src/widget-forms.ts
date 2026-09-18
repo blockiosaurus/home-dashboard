@@ -21,6 +21,8 @@ export type FieldSpec =
        * config value multiplied back up. Used for `intervalMs`, which is
        * edited in seconds but stored in milliseconds. */
       divisor?: number
+      /** Short explanatory text rendered under the field. */
+      hint?: string
     }
   | { type: 'select'; key: string; label: string; options: SelectOption[] }
   | { type: 'toggle'; key: string; label: string }
@@ -53,7 +55,16 @@ export const WIDGET_FORMS: Record<string, FieldSpec[]> = {
   ],
   agenda: [
     { type: 'text', key: 'title', label: 'Title' },
-    { type: 'number', key: 'daysAhead', label: 'Days to show', min: 1, max: 14 },
+    // Bounds match the widget's own schema (packages/widgets/agenda/src/index.ts:
+    // z.number().int().min(0).max(7)), not an arbitrary UI choice.
+    {
+      type: 'number',
+      key: 'daysAhead',
+      label: 'Days to show',
+      min: 0,
+      max: 7,
+      hint: '0 shows only today.',
+    },
   ],
   weather: [
     { type: 'location', label: 'Location' },

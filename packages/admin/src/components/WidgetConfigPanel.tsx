@@ -44,19 +44,22 @@ const FieldRow = ({
     const raw = config[field.key]
     const displayValue = typeof raw === 'number' ? raw / divisor : ''
     return (
-      <Input
-        label={field.label}
-        type="number"
-        min={field.min}
-        max={field.max}
-        value={displayValue}
-        onChange={(e) => {
-          const n = Number(e.target.value)
-          if (!Number.isFinite(n)) return
-          const clamped = field.min !== undefined ? Math.max(field.min, n) : n
-          onPatch({ [field.key]: clamped * divisor })
-        }}
-      />
+      <div>
+        <Input
+          label={field.label}
+          type="number"
+          min={field.min}
+          max={field.max}
+          value={displayValue}
+          onChange={(e) => {
+            const n = Number(e.target.value)
+            if (!Number.isFinite(n)) return
+            const clamped = field.min !== undefined ? Math.max(field.min, n) : n
+            onPatch({ [field.key]: clamped * divisor })
+          }}
+        />
+        {field.hint ? <p className="mt-1 text-xs text-[var(--text-dim)]">{field.hint}</p> : null}
+      </div>
     )
   }
 
