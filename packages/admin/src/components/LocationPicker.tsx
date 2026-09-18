@@ -54,6 +54,10 @@ export const LocationPicker = ({
   useEffect(() => {
     const trimmed = query.trim()
     if (trimmed.length < MIN_QUERY_LENGTH) {
+      // Invalidate any in-flight request too — otherwise a longer query's
+      // fetch (e.g. "Lo") can resolve after the user backspaces below the
+      // minimum length and repopulate `results` with stale matches.
+      requestId.current++
       setResults([])
       setSearchError(false)
       setSearching(false)
