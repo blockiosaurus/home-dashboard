@@ -295,6 +295,10 @@ log_ok "cage/chromium presence checked"
 # ---- 11. Final summary -------------------------------------------------------
 log_step "11/11 Done"
 HOSTNAME_FQDN="$(hostname).local"
+# The server listens on PORT (default 3000) and is not behind a reverse proxy,
+# so every printed URL needs the port — the touchscreen shows it too.
+ADMIN_PORT="$(sed -n 's/^PORT=//p' /etc/dashboard/env 2>/dev/null | tr -d "\"' " | tail -n1)"
+ADMIN_PORT="${ADMIN_PORT:-3000}"
 KIOSK_NOTE=""
 if [ "$NO_KIOSK" = "1" ]; then
   KIOSK_NOTE="
@@ -307,8 +311,8 @@ cat <<EOF
 ${COLOR_OK}Family Dashboard installed.${COLOR_RESET}
 
 Reach the admin UI from any device on this network:
-  http://$HOSTNAME_FQDN/admin/  (mDNS)
-  http://$(hostname -I | awk '{print $1}'):3000/admin/  (IP fallback)
+  http://$HOSTNAME_FQDN:$ADMIN_PORT/admin/  (mDNS)
+  http://$(hostname -I | awk '{print $1}'):$ADMIN_PORT/admin/  (IP fallback)
 
 Look at the touchscreen: it shows this same address and a QR code.
 $KIOSK_NOTE

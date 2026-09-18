@@ -36,20 +36,21 @@ After flashing Raspberry Pi OS Bookworm:
        git clone https://github.com/blockiosaurus/home-dashboard.git /opt/dashboard
        cd /opt/dashboard
 
-3. Run the installer with your Google OAuth client id + secret:
+3. Run the installer:
 
-       sudo scripts/install.sh --repo-dir /opt/dashboard --yes \
-         --google-client-id YOUR_ID.apps.googleusercontent.com \
-         --google-client-secret YOUR_SECRET
+       sudo scripts/install.sh --repo-dir /opt/dashboard
 
-   Omit `--yes` to be prompted for the credentials instead (each prompt can
-   be left blank to skip). The installer writes them into the
+   It prompts for the Google OAuth client id + secret (each prompt can be
+   left blank to skip). Prefer the prompt: the `--google-client-id` /
+   `--google-client-secret` flags exist for unattended installs (with
+   `--yes`), but a secret passed on the command line lands in your shell
+   history. The installer writes the credentials into the
    systemd-managed file at `/etc/dashboard/env` (root-owned, 0640), enables
    `dashboard.service` + `cage.service`, and starts both — the kiosk boots
    straight into the setup screen. Pass `--no-kiosk` to skip starting
    `cage.service`.
 
-4. From any phone on your WiFi, open `http://dashboard.local/admin/` (or use the IP printed
+4. From any phone on your WiFi, open `http://dashboard.local:3000/admin/` (or use the IP printed
    at the end of the installer output, or the address and QR code shown on the
    touchscreen). Walk through the wizard.
 

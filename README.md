@@ -32,20 +32,26 @@ After flashing Raspberry Pi OS Bookworm and getting a shell on the Pi:
    cd /opt/dashboard
    ```
 
-2. Run the one-shot installer with your Google OAuth credentials:
+2. Run the one-shot installer:
 
    ```bash
-   sudo scripts/install.sh --repo-dir /opt/dashboard --yes \
-     --google-client-id YOUR_ID.apps.googleusercontent.com \
-     --google-client-secret YOUR_SECRET
+   sudo scripts/install.sh --repo-dir /opt/dashboard
    ```
+
+   It prompts for your Google client id and secret and writes them straight
+   into `/etc/dashboard/env` (root-owned, 0640). This is the recommended way
+   to supply them — each prompt can be left blank to skip, and you can always
+   add or change them later by editing `/etc/dashboard/env` (see "Adding
+   credentials later" below).
+
+   There are also `--google-client-id` / `--google-client-secret` flags for
+   unattended installs, but **anything you pass on the command line is saved
+   in your shell history** (and visible in `ps` while the installer runs), so
+   prefer the prompt or the env file for the secret.
 
    The Google OAuth client must be of type **"TVs and Limited Input devices"**
    (not Web). Enable the **Google Calendar API** in the same Cloud project at
    <https://console.cloud.google.com/apis/library/calendar-json.googleapis.com>.
-   Don't have credentials yet, or run the installer without `--yes`? It
-   prompts for them interactively, and the step can always be skipped — see
-   "Adding credentials later" below.
 
    The installer installs apt deps (avahi, cage, chromium, build tools),
    Node 22 via NodeSource, pnpm via corepack, creates a `dashboard` system
