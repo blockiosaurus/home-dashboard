@@ -8,6 +8,7 @@ import { openDatabase } from '../db'
 import { createBroker } from '../ws/broker'
 import * as googleClient from './google-client'
 import { discoverCalendars, startSyncService } from './service'
+import { loadSyncStatus } from './sync-status'
 
 let dir: string
 beforeEach(() => {
@@ -156,6 +157,121 @@ describe('startSyncService tick in-flight guard', () => {
     expect(listCalendarsSpy).toHaveBeenCalledTimes(2)
 
     sync.stop()
+    close()
+  })
+})
+
+describe('startSyncService writes sync status per tick', () => {
+  it('zero accounts: a tick writes nothing', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+
+    await sync.runNow()
+
+    expect(loadSyncStatus(db.raw)).toEqual({ lastSyncAt: null, lastError: null })
+    sync.stop()
+    close()
+  })
+
+  it('a successful tick records lastSyncAt and clears lastError', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const key = await deriveKey('test-machine', saltRow?.value ?? '')
+    const enc = await createEncryptor(key)
+    db.raw
+      .prepare(
+        `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+         VALUES ('acc1', 'google', '', ?, 'calendar', 0)`,
+      )
+      .run(enc.encrypt('a-refresh-token'))
+
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockResolvedValue({
+      accessToken: 'ACCESS_TOKEN',
+      expiresAt: Date.now() + 3_600_000,
+    })
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([])
+
+    const before = Date.now()
+    await sync.runNow()
+
+    const status = loadSyncStatus(db.raw)
+    expect(status.lastError).toBeNull()
+    expect(status.lastSyncAt).not.toBeNull()
+    expect(status.lastSyncAt as number).toBeGreaterThanOrEqual(before)
+
+    sync.stop()
+    close()
+  })
+
+  it('a failing tick keeps the previous lastSyncAt and records lastError', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+
+    // `startSyncService` creates the salt on first run if none exists yet, so
+    // read it only after that, before encrypting the refresh token, to make
+    // sure it decrypts under the same key both ticks.
+    const sync1 = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const key = await deriveKey('test-machine', saltRow?.value ?? '')
+    const enc = await createEncryptor(key)
+    db.raw
+      .prepare(
+        `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+         VALUES ('acc1', 'google', '', ?, 'calendar', 0)`,
+      )
+      .run(enc.encrypt('a-refresh-token'))
+
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockResolvedValueOnce({
+      accessToken: 'ACCESS_TOKEN',
+      expiresAt: Date.now() + 3_600_000,
+    })
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([])
+
+    await sync1.runNow()
+    sync1.stop()
+
+    const afterSuccess = loadSyncStatus(db.raw)
+    expect(afterSuccess.lastError).toBeNull()
+    expect(afterSuccess.lastSyncAt).not.toBeNull()
+
+    // A fresh service instance has an empty token cache, so its tick calls
+    // refreshAccessToken again rather than reusing the first instance's
+    // cached access token — this time make that call fail.
+    const sync2 = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+    vi.restoreAllMocks()
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockRejectedValue(new Error('network down'))
+
+    await sync2.runNow()
+    sync2.stop()
+
+    const afterFailure = loadSyncStatus(db.raw)
+    expect(afterFailure.lastSyncAt).toBe(afterSuccess.lastSyncAt)
+    expect(afterFailure.lastError).toBe('network down')
+
     close()
   })
 })

@@ -24,6 +24,16 @@ export const AccountsPanel = () => {
 
   const accounts = data?.accounts ?? []
 
+  const handleConnected = () => {
+    setConnecting(false)
+    // A freshly connected account brings its own calendars and (once the
+    // next sync tick runs) a fresh sync status — refresh everything this
+    // panel and its neighbors show, not just the accounts list itself.
+    qc.invalidateQueries({ queryKey: ['accounts'] })
+    qc.invalidateQueries({ queryKey: ['calendars'] })
+    qc.invalidateQueries({ queryKey: ['sync-status'] })
+  }
+
   return (
     <Card>
       <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-dim)]">
@@ -53,10 +63,7 @@ export const AccountsPanel = () => {
         )}
         {accounts.length === 0 &&
           (connecting ? (
-            <ConnectGoogle
-              onConnected={() => setConnecting(false)}
-              onCancel={() => setConnecting(false)}
-            />
+            <ConnectGoogle onConnected={handleConnected} onCancel={() => setConnecting(false)} />
           ) : (
             <Button className="w-full" onClick={() => setConnecting(true)}>
               Connect Google

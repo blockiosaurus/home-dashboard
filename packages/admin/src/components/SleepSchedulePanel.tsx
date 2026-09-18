@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 
 const CRON_RE = /^(\d+) (\d+) \* \* \*$/
+const TIME_RE = /^\d{2}:\d{2}$/
 
 /** `M H * * *` → `HH:MM` for the `<input type="time">`, or null when the
  * rule's cron doesn't fit that simple shape (a hand-edited or otherwise
@@ -12,12 +13,20 @@ const CRON_RE = /^(\d+) (\d+) \* \* \*$/
 const parseTimeFromCron = (cronExpr: string): string | null => {
   const m = CRON_RE.exec(cronExpr)
   if (!m) return null
-  const [, minute, hour] = m
+  const minute = m[1]
+  const hour = m[2]
+  if (!minute || !hour) return null
   return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
 }
 
-const cronFromTime = (time: string): string => {
+/** `HH:MM` → `M H * * *`. Only ever called with a value that has already
+ * passed `TIME_RE` — an incomplete `<input type="time">` (mid-edit, or
+ * cleared) is never sent to the server, since a malformed cron would
+ * otherwise be silently accepted and the scene scheduler would just skip it
+ * forever (see scene-scheduler.ts's catch-and-skip). */
+const cronFromTime = (time: string): string | null => {
   const [hour, minute] = time.split(':')
+  if (!hour || !minute) return null
   return `${Number(minute)} ${Number(hour)} * * *`
 }
 
@@ -80,12 +89,11 @@ export const SleepSchedulePanel = () => {
   })
 
   const save = useMutation({
-    mutationFn: async (next: {
-      enabled: boolean
-      sleepSceneId: string
-      startTime: string
-      endTime: string
-    }) => {
+    mutationFn: async (
+      next:
+        | { enabled: false }
+        | { enabled: true; sleepSceneId: string; startCron: string; endCron: string },
+    ) => {
       if (usingLegacyIds) {
         await Promise.all([
           api.deleteScheduleRule(LEGACY_START_ID),
@@ -100,12 +108,12 @@ export const SleepSchedulePanel = () => {
       await Promise.all([
         api.putScheduleRule(START_ID, {
           sceneId: next.sleepSceneId,
-          cronExpr: cronFromTime(next.startTime),
+          cronExpr: next.startCron,
           priority: 10,
         }),
         api.putScheduleRule(END_ID, {
           sceneId: wakeSceneId,
-          cronExpr: cronFromTime(next.endTime),
+          cronExpr: next.endCron,
           priority: 10,
         }),
       ])
@@ -113,21 +121,43 @@ export const SleepSchedulePanel = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule'] }),
   })
 
+  /** Saves the sleep rules from the current form fields, unless `startTime`
+   * or `endTime` is incomplete/malformed (e.g. mid-edit in the time picker,
+   * or cleared) — in that case the field's local state was already updated
+   * by the caller so the input reflects what was typed, but nothing is sent
+   * to the server, since `cronFromTime` can't produce a valid cron from it. */
+  const trySave = (next: { sleepSceneId: string; startTime: string; endTime: string }) => {
+    if (!TIME_RE.test(next.startTime) || !TIME_RE.test(next.endTime)) return
+    const startCron = cronFromTime(next.startTime)
+    const endCron = cronFromTime(next.endTime)
+    if (!startCron || !endCron) return
+    save.mutate({ enabled: true, sleepSceneId: next.sleepSceneId, startCron, endCron })
+  }
+
   const toggle = (next: boolean) => {
     const effectiveSleepSceneId = sleepSceneId || fallbackSleepScene?.id || ''
     setEnabled(next)
-    if (next) setSleepSceneId(effectiveSleepSceneId)
-    save.mutate({ enabled: next, sleepSceneId: effectiveSleepSceneId, startTime, endTime })
+    if (!next) {
+      save.mutate({ enabled: false })
+      return
+    }
+    setSleepSceneId(effectiveSleepSceneId)
+    trySave({ sleepSceneId: effectiveSleepSceneId, startTime, endTime })
   }
 
-  const updateAndSave = (
-    patch: Partial<{ sleepSceneId: string; startTime: string; endTime: string }>,
-  ) => {
-    const next = { sleepSceneId, startTime, endTime, ...patch }
-    setSleepSceneId(next.sleepSceneId)
-    setStartTime(next.startTime)
-    setEndTime(next.endTime)
-    save.mutate({ enabled: true, ...next })
+  const updateSceneAndSave = (nextSceneId: string) => {
+    setSleepSceneId(nextSceneId)
+    trySave({ sleepSceneId: nextSceneId, startTime, endTime })
+  }
+
+  const updateTimeAndSave = (field: 'startTime' | 'endTime', value: string) => {
+    if (field === 'startTime') setStartTime(value)
+    else setEndTime(value)
+    trySave({
+      sleepSceneId,
+      startTime: field === 'startTime' ? value : startTime,
+      endTime: field === 'endTime' ? value : endTime,
+    })
   }
 
   return (
@@ -152,7 +182,7 @@ export const SleepSchedulePanel = () => {
               <select
                 className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                 value={sleepSceneId}
-                onChange={(e) => updateAndSave({ sleepSceneId: e.target.value })}
+                onChange={(e) => updateSceneAndSave(e.target.value)}
               >
                 {sceneList.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -168,7 +198,7 @@ export const SleepSchedulePanel = () => {
                   type="time"
                   className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                   value={startTime}
-                  onChange={(e) => updateAndSave({ startTime: e.target.value })}
+                  onChange={(e) => updateTimeAndSave('startTime', e.target.value)}
                 />
               </label>
               <label className="flex flex-1 flex-col gap-1 text-sm">
@@ -177,7 +207,7 @@ export const SleepSchedulePanel = () => {
                   type="time"
                   className="rounded-lg border border-[var(--text-dim)]/30 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--accent)]"
                   value={endTime}
-                  onChange={(e) => updateAndSave({ endTime: e.target.value })}
+                  onChange={(e) => updateTimeAndSave('endTime', e.target.value)}
                 />
               </label>
             </div>

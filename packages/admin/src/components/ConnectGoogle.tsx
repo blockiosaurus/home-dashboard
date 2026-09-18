@@ -77,6 +77,11 @@ export const ConnectGoogle = ({ onConnected, onCancel }: ConnectGoogleProps) => 
         <Button className="mt-4 w-full" onClick={() => start.mutate()} disabled={start.isPending}>
           {start.isPending ? 'Starting…' : 'Connect Google'}
         </Button>
+        {onCancel ? (
+          <Button variant="secondary" className="mt-2 w-full" onClick={onCancel}>
+            Cancel
+          </Button>
+        ) : null}
         {start.isError ? (
           <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">
             {start.error instanceof Error ? start.error.message : 'Something went wrong.'}
