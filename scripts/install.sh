@@ -34,8 +34,10 @@ Usage: sudo $0 [--yes] [--repo-dir PATH] [--no-kiosk] [--google-client-id ID] [-
   --yes                     Skip prompts.
   --repo-dir PATH           Source repo path (defaults to script's parent).
   --no-kiosk                Don't start cage.service after install.
-  --google-client-id ID     Google OAuth client id, written to /etc/dashboard/env.
-  --google-client-secret S  Google OAuth client secret, written to /etc/dashboard/env.
+  --google-client-id ID     Google OAuth client id; written to /etc/dashboard/env
+                            (only that line changes, independent of --google-client-secret).
+  --google-client-secret S  Google OAuth client secret; written to /etc/dashboard/env
+                            (only that line changes, independent of --google-client-id).
 EOF
       exit 0 ;;
     *) echo "unknown arg: $1" 1>&2; exit 2 ;;
@@ -193,9 +195,12 @@ EOF
 fi
 
 # Google OAuth credentials: take them from flags, prompt for whichever one is
-# missing (unless --yes), and only touch the env file if we ended up with a
-# value for at least one of them. Leaving both blank at the prompt skips this
-# entirely — the template stays untouched and can be edited later by hand.
+# missing (unless --yes). Each of GOOGLE_CLIENT_ID= / GOOGLE_CLIENT_SECRET= is
+# rewritten independently and ONLY when its own value is non-empty — a value
+# that was never provided (no flag, blank at the prompt, or skipped entirely
+# under --yes) leaves that line exactly as it already was (still commented in
+# the template, or whatever was set on a previous run). This avoids a footgun
+# where updating just one credential would blank out the other.
 GOOGLE_CLIENT_ID_VALUE="$GOOGLE_CLIENT_ID_ARG"
 GOOGLE_CLIENT_SECRET_VALUE="$GOOGLE_CLIENT_SECRET_ARG"
 if [ "$ASSUME_YES" != "1" ]; then
@@ -208,34 +213,53 @@ if [ "$ASSUME_YES" != "1" ]; then
   fi
 fi
 
+ENV_CHANGED=0
 if [ -n "$GOOGLE_CLIENT_ID_VALUE" ] || [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ]; then
+  HAVE_ID=0
+  [ -n "$GOOGLE_CLIENT_ID_VALUE" ] && HAVE_ID=1
+  HAVE_SECRET=0
+  [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ] && HAVE_SECRET=1
   ENV_TMP="$(mktemp)"
-  awk -v id="$GOOGLE_CLIENT_ID_VALUE" -v secret="$GOOGLE_CLIENT_SECRET_VALUE" '
-    BEGIN { id_done = 0; secret_done = 0 }
-    /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" id; id_done = 1; next }
-    /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" secret; secret_done = 1; next }
+  awk -v id="$GOOGLE_CLIENT_ID_VALUE" -v have_id="$HAVE_ID" \
+      -v secret="$GOOGLE_CLIENT_SECRET_VALUE" -v have_secret="$HAVE_SECRET" '
+    have_id == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" id; id_done = 1; next }
+    have_secret == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" secret; secret_done = 1; next }
     { print }
     END {
-      if (!id_done) print "GOOGLE_CLIENT_ID=" id
-      if (!secret_done) print "GOOGLE_CLIENT_SECRET=" secret
+      if (have_id == 1 && !id_done) print "GOOGLE_CLIENT_ID=" id
+      if (have_secret == 1 && !secret_done) print "GOOGLE_CLIENT_SECRET=" secret
     }
   ' /etc/dashboard/env >"$ENV_TMP"
-  install -m 0640 -o root -g "$SERVICE_GROUP" "$ENV_TMP" /etc/dashboard/env
+  if cmp -s /etc/dashboard/env "$ENV_TMP"; then
+    log_ok "Google OAuth credentials already up to date in /etc/dashboard/env"
+  else
+    install -m 0640 -o root -g "$SERVICE_GROUP" "$ENV_TMP" /etc/dashboard/env
+    ENV_CHANGED=1
+    log_ok "Google OAuth credentials written to /etc/dashboard/env"
+  fi
   rm -f "$ENV_TMP"
-  log_ok "Google OAuth credentials written to /etc/dashboard/env"
 else
   log_warn "Google OAuth credentials skipped — add them later by editing /etc/dashboard/env"
 fi
 
 systemctl daemon-reload
 systemctl enable dashboard.service cage.service
+# dashboard.service always gets restarted here regardless of ENV_CHANGED:
+# steps 6-7 just rsynced and rebuilt the app from source, so the running
+# process (if any) is already serving stale code and needs a reload on
+# every install/re-run — not only when credentials changed. See
+# scripts/update.sh, which restarts unconditionally for the same reason.
 systemctl restart dashboard.service
 if [ "$NO_KIOSK" = "1" ]; then
   log_warn "--no-kiosk passed; not starting cage.service"
 else
   systemctl is-active --quiet cage || systemctl start cage
 fi
-log_ok "systemd units installed and dashboard.service restarted"
+if [ "$ENV_CHANGED" = "1" ]; then
+  log_ok "systemd units installed; dashboard.service restarted (new build + updated credentials)"
+else
+  log_ok "systemd units installed; dashboard.service restarted (new build)"
+fi
 
 # ---- 9. Avahi ----------------------------------------------------------------
 log_step "9/11 Configuring Avahi mDNS"
