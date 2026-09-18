@@ -26,6 +26,13 @@ export interface Calendar {
   color: string | null
 }
 
+export interface Person {
+  id: string
+  name: string
+  color: string
+  primaryCalendarId: string | null
+}
+
 export const api = {
   getScenes: async () => {
     const res = await fetch('/api/scenes')
@@ -81,9 +88,7 @@ export const api = {
   getPeople: async () => {
     const res = await fetch('/api/people')
     if (!res.ok) throw new Error('people fetch failed')
-    return res.json() as Promise<{
-      people: Array<{ id: string; name: string; color: string; primaryCalendarId: string | null }>
-    }>
+    return res.json() as Promise<{ people: Person[] }>
   },
   putPerson: async (
     id: string,
