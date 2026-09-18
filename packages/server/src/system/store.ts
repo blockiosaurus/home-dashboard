@@ -13,7 +13,6 @@ export const SystemSchema = z.object({
     })
     .nullable()
     .default(null),
-  photosAlbumId: z.string().nullable().default(null),
 })
 
 export type System = z.infer<typeof SystemSchema>

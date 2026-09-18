@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 
 export interface SlideshowConfig {
-  source?: 'local' | 'google-photos' | 'ambient'
+  source?: 'local'
   intervalMs?: number
-  size?: 'w1200-h1200' | 'w800-h800' | 'w2000-h2000'
   shuffle?: boolean
 }
 
@@ -30,8 +29,6 @@ export const SlideshowView = ({
 }) => {
   const [index, setIndex] = useState(0)
   const interval = config.intervalMs ?? 8000
-  const size = config.size ?? 'w1200-h1200'
-  const source = config.source ?? 'local'
   const shuffle = config.shuffle ?? true
 
   // Shuffle once per backend tick. fetchedAt changes every poll so the order
@@ -49,22 +46,14 @@ export const SlideshowView = ({
   }, [images.length, interval])
 
   if (images.length === 0) {
-    const hint =
-      source === 'local'
-        ? 'Drop photos into the local photos folder.'
-        : source === 'ambient'
-          ? 'Open the Google Photos app and pick photo sources for this dashboard.'
-          : 'Slideshow source not configured.'
     return (
       <div className="flex h-full flex-col items-center justify-center gap-1 p-3 text-center text-[var(--text-dim)]">
         <span className="text-sm font-semibold">No photos yet</span>
-        <span className="text-xs">{hint}</span>
+        <span className="text-xs">Drop photos into the local photos folder.</span>
       </div>
     )
   }
-  // Google Photos baseUrls (Library + Ambient APIs) need the `=w...-h...`
-  // suffix; locally-served URLs are used as-is.
-  const url = source === 'local' ? (images[index] ?? '') : `${images[index]}=${size}`
+  const url = images[index] ?? ''
   return (
     <div
       className="h-full w-full bg-cover bg-center transition-opacity duration-700"

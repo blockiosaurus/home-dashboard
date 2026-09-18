@@ -58,7 +58,7 @@ describe('collectInstances', () => {
     insertScene(db.raw, 'scene-b', [
       // Same instance in a second scene must not produce a second set of timers.
       { instanceId: 'clock-1', widgetId: 'clock', config: { format: '12h' } },
-      { instanceId: 'photos-sleep', widgetId: 'slideshow', config: { source: 'ambient' } },
+      { instanceId: 'photos-sleep', widgetId: 'slideshow', config: { source: 'local' } },
     ])
 
     const out = collectInstances(db.raw)

@@ -7,7 +7,6 @@ export interface SystemState {
     unit: 'celsius' | 'fahrenheit'
     label?: string
   } | null
-  photosAlbumId: string | null
   googleConfigured: boolean
 }
 
@@ -134,39 +133,6 @@ export const api = {
     return res.json() as Promise<{
       status: 'pending' | 'ok' | 'denied' | 'expired' | 'unknown' | 'error'
     }>
-  },
-  getAlbums: async () => {
-    const res = await fetch('/api/google/albums')
-    if (!res.ok) throw new Error('albums fetch failed')
-    return res.json() as Promise<{ albums: Array<{ id: string; title: string }> }>
-  },
-  ambientRegister: async () => {
-    const res = await fetch('/api/photos/ambient/register', { method: 'POST' })
-    if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { error?: string }
-      throw new Error(body.error ?? `ambient register failed (${res.status})`)
-    }
-    return res.json() as Promise<{
-      deviceId: string
-      settingsUri: string
-      mediaSourcesSet: boolean
-      pollIntervalSeconds: number
-    }>
-  },
-  ambientStatus: async () => {
-    const res = await fetch('/api/photos/ambient/status')
-    if (res.status === 404) return null
-    if (!res.ok) throw new Error('ambient status failed')
-    return res.json() as Promise<{
-      deviceId: string
-      settingsUri: string
-      mediaSourcesSet: boolean
-      pollIntervalSeconds: number
-    }>
-  },
-  ambientReset: async () => {
-    const res = await fetch('/api/photos/ambient', { method: 'DELETE' })
-    if (!res.ok && res.status !== 204) throw new Error('ambient reset failed')
   },
   getSchedule: async () => {
     const res = await fetch('/api/scene-schedule')

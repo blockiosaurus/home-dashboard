@@ -43,10 +43,6 @@ export const PhotosStep = ({
         Or, in development, <code>packages/server/data/photos/</code>. JPG, PNG, WebP, AVIF, GIF all
         work — subfolders too. The dashboard rescans every hour.
       </p>
-      <p className="mt-3 text-xs text-[var(--text-dim)]">
-        (Google Photos' Ambient API requires Partner Program approval, so it isn't an option for
-        personal projects.)
-      </p>
     </WizardCard>
   )
 }

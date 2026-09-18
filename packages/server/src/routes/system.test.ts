@@ -105,6 +105,22 @@ describe('system routes', () => {
     await app.close()
   })
 
+  it('GET loads a stored record that still has the removed photosAlbumId field', async () => {
+    const app = await buildApp({ dataDir: dir })
+    app.db
+      .prepare(
+        `INSERT INTO kv (key, value) VALUES ('system', ?)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+      )
+      .run(JSON.stringify({ firstRunComplete: true, photosAlbumId: 'legacy-album-id' }))
+
+    const res = await app.inject({ method: 'GET', url: '/api/system' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ firstRunComplete: true })
+    expect(res.json()).not.toHaveProperty('photosAlbumId')
+    await app.close()
+  })
+
   it('PUT publishes system:updated on the broker after saving', async () => {
     const app = await buildApp({ dataDir: dir })
     const received: ServerMessage[] = []
