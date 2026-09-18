@@ -15,6 +15,8 @@ type Layout = ReactGridLayout.Layout
 
 export interface GridCanvasProps {
   cells: LayoutCell[]
+  /** Widget id -> display name, so tiles read "Meal Plan" and not "meal-plan". */
+  names: Record<string, string>
   onChange: (cells: LayoutCell[]) => void
   onSelect: (instanceId: string | null) => void
   selectedInstanceId: string | null
@@ -35,7 +37,13 @@ const sameLayout = (a: Layout[], b: Layout[]): boolean => {
   return true
 }
 
-export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: GridCanvasProps) => {
+export const GridCanvas = ({
+  cells,
+  names,
+  onChange,
+  onSelect,
+  selectedInstanceId,
+}: GridCanvasProps) => {
   // Hold the layout locally so RGL can manage positions during drag/resize
   // without us echoing every interim frame back through props and triggering
   // a re-sync. We push to the parent only on drag/resize stop.
@@ -91,7 +99,7 @@ export const GridCanvas = ({ cells, onChange, onSelect, selectedInstanceId }: Gr
           onMouseDown={() => onSelect(c.instanceId)}
           onTouchStart={() => onSelect(c.instanceId)}
         >
-          {c.widgetId}
+          {names[c.widgetId] ?? c.widgetId}
         </div>
       ))}
     </ResponsiveRGL>

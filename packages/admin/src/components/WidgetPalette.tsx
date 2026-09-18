@@ -16,20 +16,25 @@ export interface WidgetPaletteProps {
 
 export const WidgetPalette = ({ existing, onAdd }: WidgetPaletteProps) => {
   const { data } = useQuery({ queryKey: ['widgets'], queryFn: api.getWidgets })
+  const widgets = data?.widgets ?? []
+  const spots = widgets.map((w) => findEmptySpot(existing, w.defaultSize.w, w.defaultSize.h))
+  // When nothing fits, the reason has to be visible on the page — a disabled
+  // button with a `title` tooltip says nothing on a touchscreen.
+  const gridFull = widgets.length > 0 && spots.every((s) => s === null)
+
   return (
     <Card className="w-56 shrink-0">
       <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-dim)]">
         Add widget
       </h3>
       <div className="mt-3 space-y-1">
-        {(data?.widgets ?? []).map((w) => {
-          const spot = findEmptySpot(existing, w.defaultSize.w, w.defaultSize.h)
-          const full = spot === null
+        {widgets.map((w, i) => {
+          const spot = spots[i] ?? null
           return (
             <button
               key={w.id}
               type="button"
-              disabled={full}
+              disabled={spot === null}
               onClick={() => {
                 if (!spot) return
                 onAdd(
@@ -40,18 +45,29 @@ export const WidgetPalette = ({ existing, onAdd }: WidgetPaletteProps) => {
                     y: spot.y,
                     w: w.defaultSize.w,
                     h: w.defaultSize.h,
-                    config: {},
+                    // Start from the widget's own sensible defaults so a newly
+                    // placed widget works without anyone editing its settings.
+                    config: w.defaultConfig ?? {},
                   }),
                 )
               }}
-              className="block w-full rounded-lg border border-[var(--text-dim)]/20 bg-white px-3 py-2 text-left text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-              title={full ? 'No room on the grid' : `Place at (${spot.x}, ${spot.y})`}
+              className="block w-full rounded-lg border border-[var(--text-dim)]/20 bg-white px-3 py-2 text-left hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {w.name}
+              <span className="block text-sm font-semibold">{w.name}</span>
+              {w.description ? (
+                <span className="mt-0.5 block text-xs leading-snug text-[var(--text-dim)]">
+                  {w.description}
+                </span>
+              ) : null}
             </button>
           )
         })}
       </div>
+      {gridFull ? (
+        <p className="mt-2 text-xs leading-snug text-[var(--text-dim)]">
+          The grid is full. Remove or shrink a widget to add another.
+        </p>
+      ) : null}
     </Card>
   )
 }

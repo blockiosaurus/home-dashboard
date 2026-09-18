@@ -1,5 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { ClientMessageSchema, type ServerMessage } from '@dashboard/core'
+import agendaDef from '@dashboard/widget-agenda'
+import calendarDef from '@dashboard/widget-calendar'
+import choresDef from '@dashboard/widget-chores'
+import clockDef from '@dashboard/widget-clock'
+import mealPlanDef from '@dashboard/widget-meal-plan'
+import notesDef from '@dashboard/widget-notes'
+import packagesDef from '@dashboard/widget-packages'
 import slideshowDef from '@dashboard/widget-slideshow'
 import { createSlideshowBackend } from '@dashboard/widget-slideshow/backend'
 import weatherDef from '@dashboard/widget-weather'
@@ -33,7 +40,7 @@ import { listLocalPhotos } from './sync/local-photos'
 import { startSceneScheduler } from './sync/scene-scheduler'
 import { startSyncService } from './sync/service'
 import { fetchWeather } from './sync/weather-client'
-import { instancesFromScene } from './widgets/instances-from-scene'
+import { collectInstances } from './widgets/instances-from-scene'
 import { createRegistry } from './widgets/registry'
 import { startWidgetRuntime } from './widgets/runtime'
 import { createBroker } from './ws/broker'
@@ -88,6 +95,18 @@ export const buildApp = async (opts: AppOptions) => {
   })()
 
   const widgetRegistry = createRegistry()
+  // Every widget the editor can place must be registered here, otherwise the
+  // palette can't offer it and a scene containing it renders an empty tile.
+  // Only weather and slideshow need a server-side backend; the rest either
+  // render from the client's own clock/API calls or keep state via
+  // /api/widgets/:id/state.
+  widgetRegistry.register(clockDef)
+  widgetRegistry.register(calendarDef)
+  widgetRegistry.register(agendaDef)
+  widgetRegistry.register(choresDef)
+  widgetRegistry.register(mealPlanDef)
+  widgetRegistry.register(notesDef)
+  widgetRegistry.register(packagesDef)
   widgetRegistry.register({ ...weatherDef, backend: createWeatherBackend(fetchWeather) })
 
   const getAccessToken =
@@ -132,22 +151,17 @@ export const buildApp = async (opts: AppOptions) => {
     }),
   })
 
-  const widgetInstances = (() => {
-    const scene = db.raw.prepare('SELECT layout_json FROM scenes WHERE is_default = 1').get() as
-      | { layout_json: string }
-      | undefined
-    if (!scene) return []
-    return instancesFromScene(JSON.parse(scene.layout_json))
-  })()
-
+  // Backends run for every scene's widgets, not just the default one, so the
+  // Sleep scene's slideshow already has photos by the time it takes over.
   const widgetRuntime = startWidgetRuntime({
     broker,
     widgets: widgetRegistry.list(),
-    instances: widgetInstances,
+    instances: collectInstances(db.raw),
   })
   widgetCache = widgetRuntime.cache
   app.addHook('onClose', async () => widgetRuntime.stop())
   app.decorate('widgetRegistry', widgetRegistry)
+  app.decorate('widgetRuntime', widgetRuntime)
 
   app.decorate('broker', broker)
   app.decorate('db', db.raw)
@@ -158,7 +172,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerAccountsRoutes(app, db.raw)
   registerAccountsWriteRoutes(app, db.raw, { machineId })
   registerCalendarsRoutes(app, db.raw)
-  registerWidgetsListRoute(app)
+  registerWidgetsListRoute(app, db.raw)
   registerPeopleRoutes(app, db.raw)
   registerSystemRoutes(app, db.raw, {
     googleConfigured: Boolean(opts.googleClientId && opts.googleClientSecret),
@@ -206,5 +220,6 @@ declare module 'fastify' {
     broker: ReturnType<typeof createBroker>
     db: Database.Database
     widgetRegistry: ReturnType<typeof createRegistry>
+    widgetRuntime: ReturnType<typeof startWidgetRuntime>
   }
 }

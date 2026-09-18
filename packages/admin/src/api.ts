@@ -66,8 +66,10 @@ export const api = {
       widgets: Array<{
         id: string
         name: string
+        description: string
         defaultSize: { w: number; h: number }
         minSize: { w: number; h: number }
+        defaultConfig: Record<string, unknown>
       }>
     }>
   },

@@ -2,6 +2,7 @@ import { type Scene, SceneSchema } from '@dashboard/core'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { ZodError } from 'zod'
+import { collectInstances } from '../widgets/instances-from-scene'
 
 export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database) => {
   app.get('/api/scenes', async () => {
@@ -43,6 +44,10 @@ export const registerScenesRoutes = (app: FastifyInstance, db: Database.Database
          updated_at = excluded.updated_at`,
     ).run(scene.id, scene.name, JSON.stringify(scene.cells), scene.isDefault ? 1 : 0, now, now)
     reply.code(201)
+    // Widget backends are keyed off the saved scenes, so a widget added (or
+    // removed) in the editor only starts (or stops) producing data once the
+    // runtime is rebuilt from the new layout.
+    app.widgetRuntime.reload(collectInstances(db))
     app.broker.publish({ type: 'scene:updated', sceneId: scene.id })
     return scene
   })

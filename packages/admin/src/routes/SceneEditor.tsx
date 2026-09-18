@@ -11,6 +11,7 @@ import { useEditorStore } from '../store'
 export const SceneEditor = () => {
   const qc = useQueryClient()
   const { data } = useQuery({ queryKey: ['scenes'], queryFn: api.getScenes })
+  const { data: widgetData } = useQuery({ queryKey: ['widgets'], queryFn: api.getWidgets })
   const { draft, setDraft, setCells, markClean } = useEditorStore()
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -47,6 +48,10 @@ export const SceneEditor = () => {
   const onCanvasChange = (cells: LayoutCell[]) => setCells(cells)
 
   const onAddWidget = (cell: LayoutCell) => setCells([...draft.cells, cell])
+
+  const widgetNames = Object.fromEntries(
+    (widgetData?.widgets ?? []).map((w) => [w.id, w.name]),
+  ) as Record<string, string>
 
   const onConfigChange = (next: LayoutCell) =>
     setCells(draft.cells.map((c) => (c.instanceId === next.instanceId ? next : c)))
@@ -85,6 +90,7 @@ export const SceneEditor = () => {
         <div className="flex-1 min-w-0">
           <GridCanvas
             cells={draft.cells}
+            names={widgetNames}
             onChange={onCanvasChange}
             onSelect={setSelectedId}
             selectedInstanceId={selectedId}
