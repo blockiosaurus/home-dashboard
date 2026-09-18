@@ -22,9 +22,9 @@ export interface WizardCardProps {
   title: string
   subtitle?: ReactNode
   children?: ReactNode
-  /** Defaults to a Back/Continue row (see `WizardFooter`) when omitted. Pass
-   * an explicit node (e.g. `ConnectStep`'s phase-specific buttons) to replace
-   * it entirely. */
+  /** Nothing is rendered when omitted — this is not a default Back/Continue
+   * row. Pass `WizardFooter` for that, `SkipForNow` alone, or a combination
+   * (e.g. `ConnectStep`'s phase-specific buttons) as needed. */
   footer?: ReactNode
 }
 
@@ -66,4 +66,18 @@ export const WizardFooter = ({
       {continueLabel}
     </Button>
   </div>
+)
+
+/** A dismissive "skip this" text link, shared by any wizard state that lets
+ * the user move on without finishing it (every connect-flow state, including
+ * while the wizard is still waiting to find out whether an account is
+ * already connected). */
+export const SkipForNow = ({ onSkip }: { onSkip: () => void }) => (
+  <button
+    type="button"
+    onClick={onSkip}
+    className="mt-3 w-full py-2 text-center text-sm text-[var(--text-dim)] underline decoration-dotted"
+  >
+    Skip for now — you can connect a calendar later from Settings
+  </button>
 )

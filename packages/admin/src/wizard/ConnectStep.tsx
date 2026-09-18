@@ -2,17 +2,7 @@ import { Button } from '@dashboard/ui'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '../api'
-import { WizardCard } from './WizardCard'
-
-const SkipForNow = ({ onSkip }: { onSkip: () => void }) => (
-  <button
-    type="button"
-    onClick={onSkip}
-    className="mt-3 w-full py-2 text-center text-sm text-[var(--text-dim)] underline decoration-dotted"
-  >
-    Skip for now — you can connect a calendar later from Settings
-  </button>
-)
+import { SkipForNow, WizardCard } from './WizardCard'
 
 type ConnectPhase = 'idle' | 'pending' | 'denied' | 'expired'
 

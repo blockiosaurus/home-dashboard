@@ -7,7 +7,7 @@ import { ConnectStep } from '../wizard/ConnectStep'
 import { PeopleStep } from '../wizard/PeopleStep'
 import { PhotosStep } from '../wizard/PhotosStep'
 import { WeatherStep } from '../wizard/WeatherStep'
-import { WizardCard, WizardProgress } from '../wizard/WizardCard'
+import { SkipForNow, WizardCard, WizardProgress } from '../wizard/WizardCard'
 import {
   WIZARD_STEPS,
   clearWizardState,
@@ -19,6 +19,7 @@ import {
 export const Wizard = () => {
   const navigate = useNavigate()
   const [state, setState] = useState(() => loadWizardState())
+  const [proceedWithoutAccounts, setProceedWithoutAccounts] = useState(false)
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: api.getAccounts })
 
   // Persist step index + draft on every change so a refresh mid-wizard lands
@@ -41,23 +42,41 @@ export const Wizard = () => {
   // in-between state would land on the wrong step (e.g. a persisted
   // stepIndex of 2 briefly resolving to 'weather' in a 4-step list, then
   // snapping to 'people' once the real 5-step list arrives). So render a
-  // neutral placeholder until the query settles (success or error) instead
-  // of guessing.
-  if (!accounts.isSuccess && !accounts.isError) {
+  // neutral placeholder until the query settles (success or error) — with
+  // its own Skip for now, since Task 1 requires every connect-flow state to
+  // offer one and an unreachable server (default TanStack retries) would
+  // otherwise strand the user here with no control at all.
+  const settled = accounts.isSuccess || accounts.isError
+  if (!settled && !proceedWithoutAccounts) {
     return (
       <div className="flex h-full flex-col">
-        <WizardCard title="Setting things up">
+        <WizardCard
+          title="Setting things up"
+          footer={
+            <SkipForNow
+              onSkip={() => {
+                setProceedWithoutAccounts(true)
+                // Same destination as the connect step's own Skip: the step
+                // right after 'connect' in the not-connected (4-step) list.
+                setState((s) => ({ ...s, stepIndex: 1 }))
+              }}
+            />
+          }
+        >
           <p className="mt-2 text-sm text-[var(--text-dim)]">Loading…</p>
         </WizardCard>
       </div>
     )
   }
 
-  // Since that connected/not-connected fact can also change while the wizard
-  // stays open (the user just connected), the persisted stepIndex is
-  // re-interpreted as an index into whichever list is currently visible,
-  // clamped to stay in range.
-  const connected = (accounts.data?.accounts.length ?? 0) > 0
+  // Since connected/not-connected can also change while the wizard stays
+  // open (the user just connected, or skipped above before the query had
+  // resolved), the persisted stepIndex is re-interpreted as an index into
+  // whichever list is currently visible, clamped to stay in range. An
+  // unsettled query (only possible here via the skip above) reads as "not
+  // connected" for now — once it does resolve, this recomputes from the real
+  // data and the calendars step simply appears if warranted.
+  const connected = settled && (accounts.data?.accounts.length ?? 0) > 0
   const visibleSteps = WIZARD_STEPS.filter((step) => step !== 'calendars' || connected)
   const stepIndex = Math.min(Math.max(state.stepIndex, 0), visibleSteps.length - 1)
   const stepId = visibleSteps[stepIndex]
