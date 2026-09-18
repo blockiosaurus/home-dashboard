@@ -81,4 +81,48 @@ describe('events routes', () => {
     expect(body.events[0]?.personName).toBeNull()
     await app.close()
   })
+
+  it('two people mapped to the same calendar still yield exactly one row, from the lowest id', async () => {
+    const app = await buildApp({ dataDir: `/tmp/events-shared-cal-${Date.now()}` })
+    app.db
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, color_override, visible)
+         VALUES ('cal3', 'acc1', 'gcal3', 'Family', NULL, 1)`,
+      )
+      .run()
+    // Inserted out of id order to prove the tie-break is by id, not insertion order.
+    app.db
+      .prepare(
+        `INSERT INTO people (id, name, color, primary_calendar_id)
+         VALUES ('p2', 'Dad', '#5b6cff', 'cal3')`,
+      )
+      .run()
+    app.db
+      .prepare(
+        `INSERT INTO people (id, name, color, primary_calendar_id)
+         VALUES ('p1', 'Mom', '#ff7eb6', 'cal3')`,
+      )
+      .run()
+    const now = Date.now()
+    app.db
+      .prepare(
+        `INSERT INTO events_cache
+           (id, calendar_id, google_event_id, etag, start, end, all_day, title, location, description, color, last_synced_at, deleted_at)
+         VALUES ('ev3', 'cal3', 'gev3', 'etag3', ?, ?, 0, 'Family dinner', NULL, NULL, NULL, ?, NULL)`,
+      )
+      .run(now + 1000, now + 2000, now)
+
+    const res = await app.inject({
+      method: 'GET',
+      url: `/api/events?from=${now}&to=${now + 86400000}`,
+    })
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as {
+      events: Array<{ color: string | null; personName: string | null }>
+    }
+    expect(body.events).toHaveLength(1)
+    expect(body.events[0]?.color).toBe('#ff7eb6')
+    expect(body.events[0]?.personName).toBe('Mom')
+    await app.close()
+  })
 })
