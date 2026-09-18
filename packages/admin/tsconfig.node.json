@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "module": "ESNext", "types": ["node"] },
+  "compilerOptions": { "module": "ESNext", "types": ["node"], "composite": true },
   "include": ["vite.config.ts"]
 }

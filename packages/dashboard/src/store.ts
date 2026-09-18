@@ -7,6 +7,8 @@ interface DashboardState {
   bumpCalendar: () => void
   activeSceneId: string | null
   setActiveSceneId: (id: string | null) => void
+  wsConnected: boolean
+  setWsConnected: (connected: boolean) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -17,4 +19,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   bumpCalendar: () => set((s) => ({ calendarBump: s.calendarBump + 1 })),
   activeSceneId: null,
   setActiveSceneId: (id) => set({ activeSceneId: id }),
+  wsConnected: true,
+  setWsConnected: (connected) => set({ wsConnected: connected }),
 }))
