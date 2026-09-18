@@ -7,7 +7,7 @@ import { ConnectStep } from '../wizard/ConnectStep'
 import { PeopleStep } from '../wizard/PeopleStep'
 import { PhotosStep } from '../wizard/PhotosStep'
 import { WeatherStep } from '../wizard/WeatherStep'
-import { WizardProgress } from '../wizard/WizardCard'
+import { WizardCard, WizardProgress } from '../wizard/WizardCard'
 import {
   WIZARD_STEPS,
   clearWizardState,
@@ -35,10 +35,28 @@ export const Wizard = () => {
   })
 
   // The calendars step only makes sense once an account is connected — skip
-  // it entirely (not shown, not counted in "Step N of M") otherwise. Since
-  // that can change while the wizard is open (the user just connected), the
-  // persisted stepIndex is re-interpreted as an index into whichever list is
-  // currently visible, clamped to stay in range.
+  // it entirely (not shown, not counted in "Step N of M") otherwise. While
+  // the accounts query is still in flight, "no accounts yet" is ambiguous
+  // with "genuinely none connected" — computing visibleSteps against that
+  // in-between state would land on the wrong step (e.g. a persisted
+  // stepIndex of 2 briefly resolving to 'weather' in a 4-step list, then
+  // snapping to 'people' once the real 5-step list arrives). So render a
+  // neutral placeholder until the query settles (success or error) instead
+  // of guessing.
+  if (!accounts.isSuccess && !accounts.isError) {
+    return (
+      <div className="flex h-full flex-col">
+        <WizardCard title="Setting things up">
+          <p className="mt-2 text-sm text-[var(--text-dim)]">Loading…</p>
+        </WizardCard>
+      </div>
+    )
+  }
+
+  // Since that connected/not-connected fact can also change while the wizard
+  // stays open (the user just connected), the persisted stepIndex is
+  // re-interpreted as an index into whichever list is currently visible,
+  // clamped to stay in range.
   const connected = (accounts.data?.accounts.length ?? 0) > 0
   const visibleSteps = WIZARD_STEPS.filter((step) => step !== 'calendars' || connected)
   const stepIndex = Math.min(Math.max(state.stepIndex, 0), visibleSteps.length - 1)
