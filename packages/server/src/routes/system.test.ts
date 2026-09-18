@@ -61,4 +61,34 @@ describe('system routes', () => {
     expect(res.json()).toMatchObject({ googleConfigured: false })
     await app.close()
   })
+
+  it('PUT with weatherDefault mutates the seeded weather-1 cell in the default scene', async () => {
+    const app = await buildApp({ dataDir: dir })
+    const res = await app.inject({
+      method: 'PUT',
+      url: '/api/system',
+      payload: {
+        weatherDefault: { lat: 51.5074, lon: -0.1278, unit: 'celsius', label: 'London, England' },
+      },
+    })
+    expect(res.statusCode).toBe(200)
+
+    const scenes = await app.inject({ method: 'GET', url: '/api/scenes' })
+    const body = scenes.json() as {
+      scenes: Array<{
+        id: string
+        isDefault: boolean
+        cells: Array<{ instanceId: string; widgetId: string; config: Record<string, unknown> }>
+      }>
+    }
+    const defaultScene = body.scenes.find((s) => s.isDefault)
+    const weatherCell = defaultScene?.cells.find((c) => c.instanceId === 'weather-1')
+    expect(weatherCell?.config).toMatchObject({
+      lat: 51.5074,
+      lon: -0.1278,
+      unit: 'celsius',
+      label: 'London, England',
+    })
+    await app.close()
+  })
 })

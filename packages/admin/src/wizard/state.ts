@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
+import type { LocationValue } from '../components/LocationPicker'
 
 /**
  * Ordered wizard steps. Task 4 inserts `'calendars'` right after `'connect'` —
@@ -22,10 +23,11 @@ export interface PersonDraft {
 }
 
 export interface WeatherDraft {
-  lat: number
-  lon: number
+  /** `null` until the user picks a location — dropping the old NYC default
+   * means Continue on the weather step must stay disabled until this is
+   * set. */
+  location: LocationValue | null
   unit: 'celsius' | 'fahrenheit'
-  label: string
 }
 
 /** The part of the wizard's working state that survives a refresh. */
@@ -49,10 +51,8 @@ const DEFAULT_PEOPLE: PersonDraft[] = [
 ]
 
 const DEFAULT_WEATHER: WeatherDraft = {
-  lat: 40.7128,
-  lon: -74.006,
+  location: null,
   unit: 'fahrenheit',
-  label: '',
 }
 
 export const createInitialWizardState = (): WizardState => ({
@@ -69,14 +69,18 @@ const isPersonDraft = (value: unknown): value is PersonDraft => {
   return typeof v.id === 'string' && typeof v.name === 'string' && typeof v.color === 'string'
 }
 
+const isLocationValue = (value: unknown): value is LocationValue => {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.lat === 'number' && typeof v.lon === 'number' && typeof v.label === 'string'
+}
+
 const isWeatherDraft = (value: unknown): value is WeatherDraft => {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
   return (
-    typeof v.lat === 'number' &&
-    typeof v.lon === 'number' &&
     (v.unit === 'celsius' || v.unit === 'fahrenheit') &&
-    typeof v.label === 'string'
+    (v.location === null || isLocationValue(v.location))
   )
 }
 
@@ -144,7 +148,17 @@ export const finishWizard = async (draft: WizardDraft) => {
   }
   return api.putSystem({
     firstRunComplete: true,
-    weatherDefault: draft.weather,
+    // `draft.weather.location` is only ever null while the weather step's
+    // Continue button is disabled, so by the time finishWizard runs (the
+    // last step) it's always set — but stay defensive rather than assume.
+    weatherDefault: draft.weather.location
+      ? {
+          lat: draft.weather.location.lat,
+          lon: draft.weather.location.lon,
+          unit: draft.weather.unit,
+          label: draft.weather.location.label,
+        }
+      : null,
   })
 }
 

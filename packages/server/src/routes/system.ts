@@ -1,6 +1,7 @@
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
+import { applyWeatherDefault } from '../scenes/apply-weather-default'
 
 const SystemSchema = z.object({
   firstRunComplete: z.boolean().default(false),
@@ -46,10 +47,17 @@ export const registerSystemRoutes = (
 
   app.put('/api/system', async (req) => {
     const current = loadSystem(db)
+    const body = req.body as Record<string, unknown>
     // googleConfigured is derived from server config, not client-settable; SystemSchema
     // doesn't include it in its shape so zod strips it from the merged body automatically.
-    const merged = SystemSchema.parse({ ...current, ...(req.body as Record<string, unknown>) })
+    const merged = SystemSchema.parse({ ...current, ...body })
     saveSystem(db, merged)
+    // Only push the new default onto scene widgets when the request actually
+    // supplied one — a PUT that touches unrelated fields (e.g. manualScene)
+    // shouldn't re-apply the existing default and republish every scene.
+    if ('weatherDefault' in body && merged.weatherDefault) {
+      applyWeatherDefault(db, app.broker, merged.weatherDefault)
+    }
     return { ...merged, googleConfigured: deps.googleConfigured }
   })
 }
