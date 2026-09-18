@@ -186,7 +186,7 @@ install -d -m 0755 /etc/dashboard
 if [ ! -f /etc/dashboard/env ]; then
   cat >/etc/dashboard/env <<'EOF'
 # Place secrets here. After editing run:
-#   sudo systemctl restart dashboard cage
+#   sudo systemctl restart dashboard
 # GOOGLE_CLIENT_ID=
 # GOOGLE_CLIENT_SECRET=
 EOF
@@ -204,12 +204,19 @@ fi
 GOOGLE_CLIENT_ID_VALUE="$GOOGLE_CLIENT_ID_ARG"
 GOOGLE_CLIENT_SECRET_VALUE="$GOOGLE_CLIENT_SECRET_ARG"
 if [ "$ASSUME_YES" != "1" ]; then
-  if [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ]; then
-    read -r -p "Google OAuth client id (leave blank to skip): " GOOGLE_CLIENT_ID_VALUE
-  fi
-  if [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
-    read -rs -p "Google OAuth client secret (leave blank to skip): " GOOGLE_CLIENT_SECRET_VALUE
-    echo
+  if [ -t 0 ]; then
+    if [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ]; then
+      read -r -p "Google OAuth client id (leave blank to skip): " GOOGLE_CLIENT_ID_VALUE || true
+    fi
+    if [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
+      read -rs -p "Google OAuth client secret (leave blank to skip): " GOOGLE_CLIENT_SECRET_VALUE || true
+      echo
+    fi
+  elif [ "$GOOGLE_CLIENT_ID_ARG_SET" != "1" ] || [ "$GOOGLE_CLIENT_SECRET_ARG_SET" != "1" ]; then
+    # stdin isn't a terminal (piped, ssh host cmd, cron) — a bare `read` would
+    # hit EOF and, under `set -e`, take the whole installer down with it.
+    # Skip the prompt instead of risking that.
+    log_warn "stdin is not a terminal; skipping the Google OAuth prompt — add credentials later by editing /etc/dashboard/env"
   fi
 fi
 
@@ -220,14 +227,20 @@ if [ -n "$GOOGLE_CLIENT_ID_VALUE" ] || [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ]; the
   HAVE_SECRET=0
   [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ] && HAVE_SECRET=1
   ENV_TMP="$(mktemp)"
-  awk -v id="$GOOGLE_CLIENT_ID_VALUE" -v have_id="$HAVE_ID" \
-      -v secret="$GOOGLE_CLIENT_SECRET_VALUE" -v have_secret="$HAVE_SECRET" '
-    have_id == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" id; id_done = 1; next }
-    have_secret == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" secret; secret_done = 1; next }
+  trap 'rm -f "$ENV_TMP"' EXIT
+  # Credential values go through the environment (ENVIRON), not `awk -v`:
+  # `-v var=value`/command-line assignments run C-style backslash-escape
+  # processing on the string, so a secret containing `\n`, `\t`, or `\\`
+  # would come out mangled (split across lines, truncated, or re-escaped).
+  # Environment variables are handed to awk unprocessed.
+  GOOGLE_ID="$GOOGLE_CLIENT_ID_VALUE" GOOGLE_SECRET="$GOOGLE_CLIENT_SECRET_VALUE" \
+    awk -v have_id="$HAVE_ID" -v have_secret="$HAVE_SECRET" '
+    have_id == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_ID=/ { print "GOOGLE_CLIENT_ID=" ENVIRON["GOOGLE_ID"]; id_done = 1; next }
+    have_secret == 1 && /^#?[[:space:]]*GOOGLE_CLIENT_SECRET=/ { print "GOOGLE_CLIENT_SECRET=" ENVIRON["GOOGLE_SECRET"]; secret_done = 1; next }
     { print }
     END {
-      if (have_id == 1 && !id_done) print "GOOGLE_CLIENT_ID=" id
-      if (have_secret == 1 && !secret_done) print "GOOGLE_CLIENT_SECRET=" secret
+      if (have_id == 1 && !id_done) print "GOOGLE_CLIENT_ID=" ENVIRON["GOOGLE_ID"]
+      if (have_secret == 1 && !secret_done) print "GOOGLE_CLIENT_SECRET=" ENVIRON["GOOGLE_SECRET"]
     }
   ' /etc/dashboard/env >"$ENV_TMP"
   if cmp -s /etc/dashboard/env "$ENV_TMP"; then
@@ -238,6 +251,7 @@ if [ -n "$GOOGLE_CLIENT_ID_VALUE" ] || [ -n "$GOOGLE_CLIENT_SECRET_VALUE" ]; the
     log_ok "Google OAuth credentials written to /etc/dashboard/env"
   fi
   rm -f "$ENV_TMP"
+  trap - EXIT
 else
   log_warn "Google OAuth credentials skipped — add them later by editing /etc/dashboard/env"
 fi
@@ -306,6 +320,6 @@ Source tree:      $INSTALL_DIR
 Env file:         /etc/dashboard/env  (put GOOGLE_CLIENT_ID/SECRET here)
 
 After editing /etc/dashboard/env, run:
-  sudo systemctl restart dashboard cage
+  sudo systemctl restart dashboard
 
 EOF
