@@ -43,6 +43,7 @@ export interface AppOptions {
   localPhotosDir?: string
   googleClientId?: string
   googleClientSecret?: string
+  port?: number
 }
 
 export const buildApp = async (opts: AppOptions) => {
@@ -161,6 +162,7 @@ export const buildApp = async (opts: AppOptions) => {
   registerPeopleRoutes(app, db.raw)
   registerSystemRoutes(app, db.raw, {
     googleConfigured: Boolean(opts.googleClientId && opts.googleClientSecret),
+    port: opts.port ?? 3000,
   })
   registerSceneScheduleRoutes(app, db.raw)
   registerPhotosRoutes(app, { localPhotosDir })

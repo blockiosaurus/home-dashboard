@@ -1,7 +1,9 @@
+import os from 'node:os'
 import type Database from 'better-sqlite3'
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { applyWeatherDefault } from '../scenes/apply-weather-default'
+import { buildAdminUrls } from '../system/admin-urls'
 
 const SystemSchema = z.object({
   firstRunComplete: z.boolean().default(false),
@@ -38,11 +40,15 @@ const saveSystem = (db: Database.Database, next: System) => {
 export const registerSystemRoutes = (
   app: FastifyInstance,
   db: Database.Database,
-  deps: { googleConfigured: boolean },
+  deps: { googleConfigured: boolean; port: number },
 ) => {
+  const adminUrls = () =>
+    buildAdminUrls({ hostname: os.hostname(), interfaces: os.networkInterfaces(), port: deps.port })
+
   app.get('/api/system', async () => ({
     ...loadSystem(db),
     googleConfigured: deps.googleConfigured,
+    adminUrls: adminUrls(),
   }))
 
   app.put('/api/system', async (req) => {
@@ -58,6 +64,7 @@ export const registerSystemRoutes = (
     if ('weatherDefault' in body && merged.weatherDefault) {
       applyWeatherDefault(db, app.broker, merged.weatherDefault)
     }
+    app.broker.publish({ type: 'system:updated' })
     return { ...merged, googleConfigured: deps.googleConfigured }
   })
 }

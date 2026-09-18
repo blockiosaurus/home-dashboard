@@ -17,6 +17,9 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('calendar:changed'),
   }),
+  z.object({
+    type: z.literal('system:updated'),
+  }),
 ])
 
 export type ServerMessage = z.infer<typeof ServerMessageSchema>

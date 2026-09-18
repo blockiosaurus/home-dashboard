@@ -16,6 +16,11 @@ describe('ServerMessage', () => {
     expect(msg.type).toBe('scene:updated')
   })
 
+  it('parses system:updated', () => {
+    const msg = ServerMessageSchema.parse({ type: 'system:updated' })
+    expect(msg.type).toBe('system:updated')
+  })
+
   it('rejects unknown types', () => {
     expect(() => ServerMessageSchema.parse({ type: 'nope' })).toThrow()
   })

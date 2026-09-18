@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import type { ServerMessage } from '@dashboard/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { buildApp } from '../app'
 
@@ -89,6 +90,34 @@ describe('system routes', () => {
       unit: 'celsius',
       label: 'London, England',
     })
+    await app.close()
+  })
+
+  it('GET includes adminUrls as a non-empty array of admin URLs', async () => {
+    const app = await buildApp({ dataDir: dir, port: 4100 })
+    const res = await app.inject({ method: 'GET', url: '/api/system' })
+    const body = res.json() as { adminUrls: string[] }
+    expect(Array.isArray(body.adminUrls)).toBe(true)
+    expect(body.adminUrls.length).toBeGreaterThan(0)
+    for (const url of body.adminUrls) {
+      expect(url).toMatch(/^http:\/\/.+:4100\/admin\/$/)
+    }
+    await app.close()
+  })
+
+  it('PUT publishes system:updated on the broker after saving', async () => {
+    const app = await buildApp({ dataDir: dir })
+    const received: ServerMessage[] = []
+    const unsub = app.broker.subscribe((m) => received.push(m))
+
+    await app.inject({
+      method: 'PUT',
+      url: '/api/system',
+      payload: { firstRunComplete: true },
+    })
+
+    expect(received).toContainEqual({ type: 'system:updated' })
+    unsub()
     await app.close()
   })
 })

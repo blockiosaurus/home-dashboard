@@ -121,6 +121,9 @@ importers:
       '@tanstack/react-query':
         specifier: 5.62.7
         version: 5.62.7(react@19.0.0)
+      qrcode.react:
+        specifier: 4.1.0
+        version: 4.1.0(react@19.0.0)
       react:
         specifier: 19.0.0
         version: 19.0.0
