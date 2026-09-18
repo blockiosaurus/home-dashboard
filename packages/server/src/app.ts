@@ -30,6 +30,7 @@ import { registerPhotosRoutes } from './routes/photos'
 import { registerPhotosAmbientRoutes } from './routes/photos-ambient'
 import { registerSceneScheduleRoutes } from './routes/scene-schedule'
 import { registerScenesRoutes } from './routes/scenes'
+import { registerSyncStatusRoutes } from './routes/sync-status'
 import { registerSystemRoutes } from './routes/system'
 import { registerWidgetStateRoutes } from './routes/widget-state'
 import { registerWidgetsListRoute } from './routes/widgets-list'
@@ -179,6 +180,7 @@ export const buildApp = async (opts: AppOptions) => {
     port: opts.port ?? 3000,
   })
   registerSceneScheduleRoutes(app, db.raw)
+  registerSyncStatusRoutes(app, db.raw)
   registerPhotosRoutes(app, { localPhotosDir })
   registerPhotosAmbientRoutes(app, db.raw, { getAccessToken })
 

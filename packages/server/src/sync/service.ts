@@ -9,6 +9,7 @@ import { getSyncToken, setSyncToken, upsertEvents } from './calendar-repo'
 import type { CachedEvent } from './calendar-sync'
 import { listCalendars, listEvents } from './google-client'
 import { syncCalendarOnce } from './runner'
+import { writeSyncStatus } from './sync-status'
 
 const upsertCalendar = (
   db: Database.Database,
@@ -144,6 +145,7 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
               console.error(`sync failed for calendar ${c.id}`, err)
             }
           }
+          writeSyncStatus(opts.db, { lastSyncAt: Date.now(), lastError: null })
         } catch (err) {
           if (err instanceof InvalidRefreshTokenError) {
             // Token has been revoked or superseded — most often because the user
@@ -154,6 +156,9 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
             continue
           }
           console.error(`sync failed for account ${acc.id}`, err)
+          writeSyncStatus(opts.db, {
+            lastError: err instanceof Error ? err.message : String(err),
+          })
         }
       }
     } finally {

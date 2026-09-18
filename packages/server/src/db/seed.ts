@@ -119,6 +119,6 @@ export const seedDefaultScene = (db: Database.Database) => {
   const rule = db.prepare(
     'INSERT INTO scene_schedule (id, scene_id, cron_expr, priority) VALUES (?, ?, ?, ?)',
   )
-  rule.run('sleep-22', 'sleep', '0 22 * * *', 10)
-  rule.run('wake-07', 'default', '0 7 * * *', 10)
+  rule.run('sleep-start', 'sleep', '0 22 * * *', 10)
+  rule.run('sleep-end', 'default', '0 7 * * *', 10)
 }

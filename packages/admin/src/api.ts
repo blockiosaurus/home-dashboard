@@ -196,6 +196,15 @@ export const api = {
     if (!res.ok) throw new Error('accounts fetch failed')
     return res.json() as Promise<{ accounts: Account[] }>
   },
+  getSyncStatus: async () => {
+    const res = await fetch('/api/sync/status')
+    if (!res.ok) throw new Error('sync status fetch failed')
+    return res.json() as Promise<{
+      lastSyncAt: number | null
+      lastError: string | null
+      eventCount: number
+    }>
+  },
   deleteAccount: async (id: string) => {
     const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' })
     if (!res.ok && res.status !== 204) throw new Error('account delete failed')
