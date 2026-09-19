@@ -69,6 +69,11 @@ export const GridCanvas = ({
   useEffect(() => {
     const el = wrapperRef.current
     if (!el) return
+    // Measure once up front: ResizeObserver's first callback is delivered on a
+    // later frame, so without this the canvas paints at the fallback width and
+    // visibly snaps to size a frame later.
+    const initial = el.getBoundingClientRect().width
+    if (initial > 0) setWidth(initial)
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width
       if (w && w > 0) setWidth(w)
@@ -81,6 +86,16 @@ export const GridCanvas = ({
   // to the last known-good width rather than producing rowHeight 0.
   const safeWidth = width > 0 ? width : 600
   const rowHeight = Math.round(((safeWidth / GRID_COLS) * 1920) / 1080)
+
+  // RGL's own defaults, pinned so the canvas height below stays in step with
+  // whatever RGL actually renders.
+  const MARGIN = 10
+
+  // Always show the whole 8x12 kiosk screen. RGL's `autoSize` sizes the
+  // container to the *occupied* rows instead, which collapses the canvas as
+  // soon as the lowest widget is removed and leaves empty grid rows with no
+  // drop target to aim at.
+  const canvasHeight = GRID_ROWS * rowHeight + (GRID_ROWS - 1) * MARGIN + MARGIN * 2
 
   const persist = (next: Layout[]) => {
     onChange(
@@ -99,6 +114,10 @@ export const GridCanvas = ({
         cols={GRID_COLS}
         maxRows={GRID_ROWS}
         rowHeight={rowHeight}
+        margin={[MARGIN, MARGIN]}
+        containerPadding={[MARGIN, MARGIN]}
+        autoSize={false}
+        style={{ height: canvasHeight }}
         layout={layout}
         // Track live moves in local state so RGL has stable reference between
         // frames. Don't notify the parent until interaction ends.
@@ -109,7 +128,13 @@ export const GridCanvas = ({
         verticalCompact={false}
         preventCollision={false}
         allowOverlap
-        isBounded
+        // NOT `isBounded`. react-grid-layout 1.5.0 subtracts `containerPadding`
+        // from the running drag offset on every drag event and feeds the result
+        // back into its own drag state (GridItem.js, the isBounded branch), so
+        // the tile creeps up and left by 10px per mousemove — dozens of pixels
+        // per drag — and lands rows above where it was dropped. Bounds don't
+        // need it: RGL's calcXY already clamps to `cols`/`maxRows` on drop, and
+        // `clampCell` in `persist` clamps again before the draft is updated.
         isDraggable
         isResizable
         useCSSTransforms
