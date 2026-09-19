@@ -102,17 +102,81 @@ const isWizardState = (value: unknown): value is WizardState => {
 /** Restores wizard progress from sessionStorage. Never throws — malformed or
  * missing data falls back to the defaults. Device codes are never stored here
  * (`ConnectStep` keeps that in local component state), so there is nothing
- * OAuth-related to worry about restoring. */
-export const loadWizardState = (): WizardState => {
+ * OAuth-related to worry about restoring.
+ *
+ * `restored` says whether this came back from storage, which is what tells
+ * `Wizard` apart a resumed session (leave the answers alone) from a fresh
+ * entry (safe to pre-fill from what's already saved on the server). */
+export const loadWizardState = (): { state: WizardState; restored: boolean } => {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY)
-    if (!raw) return createInitialWizardState()
+    if (!raw) return { state: createInitialWizardState(), restored: false }
     const parsed: unknown = JSON.parse(raw)
-    return isWizardState(parsed) ? parsed : createInitialWizardState()
+    return isWizardState(parsed)
+      ? { state: parsed, restored: true }
+      : { state: createInitialWizardState(), restored: false }
   } catch {
-    return createInitialWizardState()
+    return { state: createInitialWizardState(), restored: false }
   }
 }
+
+/** True while the draft still holds exactly the blank defaults — i.e. the
+ * user has not typed anything yet, so replacing it can't lose their work. */
+export const isPristineDraft = (draft: WizardDraft): boolean =>
+  draft.weather.location === null &&
+  draft.weather.unit === DEFAULT_WEATHER.unit &&
+  draft.people.length === DEFAULT_PEOPLE.length &&
+  draft.people.every((p, i) => {
+    const d = DEFAULT_PEOPLE[i]
+    return (
+      d !== undefined &&
+      p.id === d.id &&
+      p.name === '' &&
+      p.color === d.color &&
+      p.primaryCalendarId === null
+    )
+  })
+
+/** Builds a draft from what's already saved, so re-running setup starts from
+ * the current family members and weather location instead of four blank name
+ * fields — which `finishWizard` would otherwise read as "delete these people".
+ * People saved outside the four fixed slots have no field to show them and
+ * are left untouched on the server. */
+export const draftFromSaved = (
+  people: Array<{ id: string; name: string; color: string; primaryCalendarId: string | null }>,
+  weatherDefault: {
+    lat: number
+    lon: number
+    unit: 'celsius' | 'fahrenheit'
+    label?: string
+  } | null,
+): WizardDraft => ({
+  people: DEFAULT_PEOPLE.map((slot) => {
+    const saved = people.find((p) => p.id === slot.id)
+    if (!saved) return { ...slot }
+    return {
+      id: slot.id,
+      name: saved.name,
+      color: saved.color,
+      primaryCalendarId: saved.primaryCalendarId,
+    }
+  }),
+  weather: weatherDefault
+    ? {
+        location: {
+          lat: weatherDefault.lat,
+          lon: weatherDefault.lon,
+          // A saved location without a label predates the city search; show
+          // its coordinates rather than an empty chip.
+          label:
+            weatherDefault.label && weatherDefault.label.length > 0
+              ? weatherDefault.label
+              : `${weatherDefault.lat.toFixed(2)}, ${weatherDefault.lon.toFixed(2)}`,
+        },
+        unit: weatherDefault.unit,
+      }
+    : { ...DEFAULT_WEATHER },
+})
 
 export const saveWizardState = (state: WizardState) => {
   try {

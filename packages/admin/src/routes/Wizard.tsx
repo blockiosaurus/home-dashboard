@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api'
 import { CalendarsStep } from '../wizard/CalendarsStep'
@@ -11,6 +11,8 @@ import { SkipForNow, WizardCard, WizardProgress } from '../wizard/WizardCard'
 import {
   WIZARD_STEPS,
   clearWizardState,
+  draftFromSaved,
+  isPristineDraft,
   loadWizardState,
   saveWizardState,
   useFinishWizard,
@@ -18,9 +20,30 @@ import {
 
 export const Wizard = () => {
   const navigate = useNavigate()
-  const [state, setState] = useState(() => loadWizardState())
+  const [restored] = useState(() => loadWizardState())
+  const [state, setState] = useState(restored.state)
   const [proceedWithoutAccounts, setProceedWithoutAccounts] = useState(false)
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: api.getAccounts })
+  const people = useQuery({ queryKey: ['people'], queryFn: api.getPeople })
+  const system = useQuery({ queryKey: ['system'], queryFn: api.getSystem })
+
+  // Re-running setup should start from what's already configured, not from
+  // four blank name fields — `finishWizard` deletes the fixed person slots
+  // whose name is blank, so clicking through a re-run used to wipe the family
+  // members. Seed once, and only into an untouched draft from a fresh entry:
+  // a session restored mid-wizard keeps its own answers (including names the
+  // user deliberately cleared to remove someone).
+  const seeded = useRef(restored.restored)
+  useEffect(() => {
+    if (seeded.current) return
+    if (!people.isSuccess || !system.isSuccess) return
+    seeded.current = true
+    setState((s) =>
+      isPristineDraft(s.draft)
+        ? { ...s, draft: draftFromSaved(people.data.people, system.data.weatherDefault) }
+        : s,
+    )
+  }, [people.isSuccess, people.data, system.isSuccess, system.data])
 
   // Persist step index + draft on every change so a refresh mid-wizard lands
   // back on the same step with the same answers. OAuth device codes never

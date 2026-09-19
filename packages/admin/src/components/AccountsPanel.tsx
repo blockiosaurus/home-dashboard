@@ -56,19 +56,23 @@ export const AccountsPanel = () => {
                 onClick={() => disconnect.mutate(a.id)}
                 disabled={disconnect.isPending}
               >
-                {disconnect.isPending ? 'Disconnecting…' : 'Disconnect'}
+                {disconnect.isPending && disconnect.variables === a.id
+                  ? 'Disconnecting…'
+                  : 'Disconnect'}
               </Button>
             </div>
           ))
         )}
-        {accounts.length === 0 &&
-          (connecting ? (
-            <ConnectGoogle onConnected={handleConnected} onCancel={() => setConnecting(false)} />
-          ) : (
-            <Button className="w-full" onClick={() => setConnecting(true)}>
-              Connect Google
-            </Button>
-          ))}
+        {/* Offered whatever the count: each sign-in adds an account rather
+            than replacing one, and the sync loop covers them all, so this is
+            how a second person links their own calendar. */}
+        {connecting ? (
+          <ConnectGoogle onConnected={handleConnected} onCancel={() => setConnecting(false)} />
+        ) : (
+          <Button className="w-full" onClick={() => setConnecting(true)}>
+            {accounts.length === 0 ? 'Connect Google' : 'Connect another account'}
+          </Button>
+        )}
       </div>
       {accounts.length > 0 ? (
         <div className="mt-3 border-t border-[var(--text-dim)]/20 pt-3 text-sm text-[var(--text-dim)]">

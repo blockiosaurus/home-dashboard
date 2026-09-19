@@ -33,7 +33,18 @@ export const registerAccountsWriteRoutes = (
         app.log.warn({ err }, 'token revocation failed; deleting row anyway')
       }
     }
-    db.prepare('DELETE FROM accounts WHERE id = ?').run(req.params.id)
+    // Drop the account's calendars and their cached events too. Without this
+    // a disconnected account's events keep showing on the dashboard forever:
+    // nothing else ever revisits rows whose account is gone, and with two
+    // people connected that means one person leaving leaves their events up.
+    const removeAccount = db.transaction((accountId: string) => {
+      db.prepare(
+        'DELETE FROM events_cache WHERE calendar_id IN (SELECT id FROM calendars WHERE account_id = ?)',
+      ).run(accountId)
+      db.prepare('DELETE FROM calendars WHERE account_id = ?').run(accountId)
+      db.prepare('DELETE FROM accounts WHERE id = ?').run(accountId)
+    })
+    removeAccount(req.params.id)
     reply.code(204)
     return null
   })
