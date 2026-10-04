@@ -2,6 +2,7 @@ import { OnScreenKeyboard } from '@dashboard/ui'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { NavLink, Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { api } from './api'
+import { ImportEvents } from './routes/ImportEvents'
 import { SceneEditor } from './routes/SceneEditor'
 import { Settings } from './routes/Settings'
 import { Wizard } from './routes/Wizard'
@@ -44,6 +45,9 @@ const Shell = () => {
         <NavLink to="/editor" className={navLinkClass}>
           Scene editor
         </NavLink>
+        <NavLink to="/import" className={navLinkClass}>
+          Import events
+        </NavLink>
         <NavLink to="/settings" className={navLinkClass}>
           Settings
         </NavLink>
@@ -60,6 +64,7 @@ const Shell = () => {
         <Routes>
           <Route path="/" element={<Navigate to="/editor" replace />} />
           <Route path="/editor" element={<SceneEditor />} />
+          <Route path="/import" element={<ImportEvents />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </div>

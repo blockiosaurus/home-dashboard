@@ -189,6 +189,7 @@ if [ ! -f /etc/dashboard/env ]; then
 #   sudo systemctl restart dashboard
 # GOOGLE_CLIENT_ID=
 # GOOGLE_CLIENT_SECRET=
+# ANTHROPIC_API_KEY=
 EOF
   chmod 0640 /etc/dashboard/env
   chown root:"$SERVICE_GROUP" /etc/dashboard/env

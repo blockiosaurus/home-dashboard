@@ -7,6 +7,7 @@ const Schema = z.object({
   localPhotosDir: z.string().default('./data/photos'),
   googleClientId: z.string().optional(),
   googleClientSecret: z.string().optional(),
+  anthropicApiKey: z.string().optional(),
 })
 
 export type Config = z.infer<typeof Schema>
@@ -19,4 +20,6 @@ export const loadConfig = (env: NodeJS.ProcessEnv | Record<string, string | unde
     localPhotosDir: env.LOCAL_PHOTOS_DIR,
     googleClientId: env.GOOGLE_CLIENT_ID,
     googleClientSecret: env.GOOGLE_CLIENT_SECRET,
+    // Empty string (the .env.example default) means "not set".
+    anthropicApiKey: env.ANTHROPIC_API_KEY || undefined,
   })

@@ -16,6 +16,7 @@ console.log(
     `(client_id=${hasGoogleId ? 'set' : 'empty'}, client_secret=${hasGoogleSecret ? 'set' : 'empty'})`,
 )
 
+console.log(`ai import: ${config.anthropicApiKey ? 'configured' : 'NOT configured'}`)
 console.log(`local photos dir: ${config.localPhotosDir}`)
 
 const app = await buildApp({
@@ -26,6 +27,7 @@ const app = await buildApp({
   ...(config.googleClientSecret !== undefined
     ? { googleClientSecret: config.googleClientSecret }
     : {}),
+  ...(config.anthropicApiKey !== undefined ? { anthropicApiKey: config.anthropicApiKey } : {}),
 })
 
 await app.listen({ port: config.port, host: config.host })

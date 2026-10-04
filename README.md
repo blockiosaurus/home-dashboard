@@ -105,6 +105,26 @@ sudo chown -R dashboard:dashboard /var/lib/dashboard/photos
 Subfolders work. JPG, PNG, WebP, AVIF, GIF are recognized. The widget rescans
 every hour; restart the service to force a refresh.
 
+### Importing events from flyers and PDFs
+
+For the schedules and invitations that arrive as paper, PDFs or screenshots
+instead of calendar invites, open the admin's **Import events** page, drop the
+files in (PDF, JPG, PNG, HEIC — a phone photo of a flyer works), and press
+**Find events**. Claude reads the dates off them; you review, fix anything it
+got wrong, pick a calendar for each, and add the ones you want. Nothing is
+added until you confirm.
+
+It needs an Anthropic API key in the server env:
+
+```bash
+sudo nano /etc/dashboard/env
+# ANTHROPIC_API_KEY=sk-ant-...
+sudo systemctl restart dashboard
+```
+
+Uploaded files are sent to the Anthropic API to be read and aren't stored on
+the Pi.
+
 ### Ongoing ops
 
 | Task        | Command                                                       |

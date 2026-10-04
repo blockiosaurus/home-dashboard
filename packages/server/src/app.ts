@@ -16,11 +16,13 @@ import type Database from 'better-sqlite3'
 import Fastify from 'fastify'
 import { openDatabase } from './db'
 import { seedDefaultScene } from './db/seed'
+import { createAnthropicClient, extractEvents } from './ingest/extract'
 import { registerAccountsRoutes } from './routes/accounts'
 import { registerAccountsWriteRoutes } from './routes/accounts-write'
 import { registerCalendarsRoutes } from './routes/calendars'
 import { registerEventWritesRoutes } from './routes/event-writes'
 import { registerEventsRoutes } from './routes/events'
+import { type Extractor, registerIngestRoutes } from './routes/ingest'
 import { registerOauthRoutes } from './routes/oauth'
 import { registerPeopleRoutes } from './routes/people'
 import { registerPhotosRoutes } from './routes/photos'
@@ -49,6 +51,10 @@ export interface AppOptions {
   /** Overrides the open-meteo client the weather backend calls. Only tests
    * pass this; production uses the real `fetchWeather`. */
   fetchWeather?: (input: WeatherInput) => Promise<unknown>
+  /** Enables AI import of flyers/PDFs/photos into events. */
+  anthropicApiKey?: string
+  /** Overrides the Claude-backed extractor. Only tests pass this. */
+  extractEvents?: Extractor
 }
 
 export const buildApp = async (opts: AppOptions) => {
@@ -141,8 +147,18 @@ export const buildApp = async (opts: AppOptions) => {
   registerCalendarsRoutes(app, db.raw)
   registerWidgetsListRoute(app, db.raw)
   registerPeopleRoutes(app, db.raw)
+  const extract: Extractor | undefined =
+    opts.extractEvents ??
+    (opts.anthropicApiKey
+      ? (() => {
+          const client = createAnthropicClient(opts.anthropicApiKey)
+          return (files, ctx) => extractEvents(client, files, ctx)
+        })()
+      : undefined)
+  registerIngestRoutes(app, extract ? { extract } : {})
   registerSystemRoutes(app, db.raw, {
     googleConfigured: Boolean(opts.googleClientId && opts.googleClientSecret),
+    aiImportConfigured: Boolean(extract),
     port: opts.port ?? 3000,
   })
   registerSceneScheduleRoutes(app, db.raw)

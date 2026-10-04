@@ -8,6 +8,7 @@ export interface SystemState {
     label?: string
   } | null
   googleConfigured: boolean
+  aiImportConfigured: boolean
 }
 
 export interface Account {
@@ -30,6 +31,25 @@ export interface Person {
   name: string
   color: string
   primaryCalendarId: string | null
+}
+
+/** An event Claude read off an uploaded flyer/PDF/photo. Dates and times are
+ * local wall-clock strings; see `import-events.ts` for the conversion. */
+export interface ProposedEvent {
+  title: string
+  date: string
+  endDate: string | null
+  startTime: string | null
+  endTime: string | null
+  allDay: boolean
+  location: string | null
+  description: string | null
+}
+
+export interface IngestUpload {
+  name: string
+  mediaType: string
+  data: string
 }
 
 export const api = {
@@ -188,5 +208,37 @@ export const api = {
     })
     if (!res.ok) throw new Error('calendar save failed')
     return res.json() as Promise<Calendar>
+  },
+  extractEvents: async (body: { files: IngestUpload[]; today: string; timezone: string }) => {
+    const res = await fetch('/api/ingest/extract', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(
+        err.error ??
+          (res.status === 413 ? 'Files are too large.' : `import failed (${res.status})`),
+      )
+    }
+    return res.json() as Promise<{ events: ProposedEvent[]; notes: string | null }>
+  },
+  createEvent: async (body: {
+    calendarId: string
+    title: string
+    description?: string
+    location?: string
+    start: number
+    end: number
+    allDay: boolean
+  }) => {
+    const res = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error('event save failed')
+    return res.json() as Promise<{ id: string }>
   },
 }

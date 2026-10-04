@@ -9,7 +9,7 @@ import { collectInstances } from '../widgets/instances-from-scene'
 export const registerSystemRoutes = (
   app: FastifyInstance,
   db: Database.Database,
-  deps: { googleConfigured: boolean; port: number },
+  deps: { googleConfigured: boolean; aiImportConfigured: boolean; port: number },
 ) => {
   const adminUrls = () =>
     buildAdminUrls({ hostname: os.hostname(), interfaces: os.networkInterfaces(), port: deps.port })
@@ -17,6 +17,7 @@ export const registerSystemRoutes = (
   app.get('/api/system', async () => ({
     ...loadSystem(db),
     googleConfigured: deps.googleConfigured,
+    aiImportConfigured: deps.aiImportConfigured,
     adminUrls: adminUrls(),
   }))
 
@@ -44,6 +45,10 @@ export const registerSystemRoutes = (
       }
     }
     app.broker.publish({ type: 'system:updated' })
-    return { ...merged, googleConfigured: deps.googleConfigured }
+    return {
+      ...merged,
+      googleConfigured: deps.googleConfigured,
+      aiImportConfigured: deps.aiImportConfigured,
+    }
   })
 }
