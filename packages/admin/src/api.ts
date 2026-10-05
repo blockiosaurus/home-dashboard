@@ -9,6 +9,8 @@ export interface SystemState {
   } | null
   googleConfigured: boolean
   aiImportConfigured: boolean
+  /** mDNS address first, then one per LAN IP. */
+  adminUrls?: string[]
 }
 
 export interface Account {

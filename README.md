@@ -105,6 +105,24 @@ sudo chown -R dashboard:dashboard /var/lib/dashboard/photos
 Subfolders work. JPG, PNG, WebP, AVIF, GIF are recognized. The widget rescans
 every hour; restart the service to force a refresh.
 
+### Admin on your phone's home screen
+
+The admin can be installed as an app, so you don't need to keep a browser tab
+open. Open it on your phone at **`http://dashboard.local:3000/admin/`** (the
+`.local` name, not the IP: a home-screen app stays tied to the address it was
+installed from, and the Pi's IP can change), then:
+
+- **iPhone / iPad (Safari):** Share → **Add to Home Screen**. It opens
+  full-screen like a normal app.
+- **Android (Chrome):** menu → **Add to Home screen**. Because the Pi serves
+  plain HTTP, Chrome adds a shortcut that opens in a Chrome tab rather than in
+  its own window.
+
+If you open the admin from an IP address, a banner offers the `.local` link
+instead. If your phone can't open `dashboard.local` (some Android phones and
+some routers don't support `.local` names), give the Pi a fixed IP in your
+router's DHCP settings and install from that address.
+
 ### Importing events from flyers and PDFs
 
 For the schedules and invitations that arrive as paper, PDFs or screenshots

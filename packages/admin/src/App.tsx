@@ -2,6 +2,7 @@ import { OnScreenKeyboard } from '@dashboard/ui'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import { NavLink, Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 import { api } from './api'
+import { InstallBanner } from './components/InstallBanner'
 import { ImportEvents } from './routes/ImportEvents'
 import { SceneEditor } from './routes/SceneEditor'
 import { Settings } from './routes/Settings'
@@ -61,6 +62,7 @@ const Shell = () => {
         </a>
       </nav>
       <div className="flex-1 overflow-y-auto">
+        <InstallBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/editor" replace />} />
           <Route path="/editor" element={<SceneEditor />} />
