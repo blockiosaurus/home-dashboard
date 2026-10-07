@@ -7,9 +7,9 @@ const MAX_IMAGE_EDGE = 2000
 
 /** Turn a proposal's local wall-clock strings into the epoch-ms span
  * POST /api/events stores. All-day events follow the Google sync's
- * convention: UTC midnight of the first day to UTC midnight after the last
- * (exclusive). Timed events are read in this browser's zone, which is the
- * household's — the Pi's clock zone may not be. Returns null when the
+ * convention: local midnight of the first day to local midnight after the
+ * last (exclusive). Everything is read in this browser's zone, which should
+ * match the Pi's. Returns null when the
  * fields don't form a valid span, so the row can be flagged instead of
  * saved wrong. */
 export const toEventSpan = (
@@ -17,8 +17,11 @@ export const toEventSpan = (
 ): { start: number; end: number; allDay: boolean } | null => {
   const lastDay = e.endDate || e.date
   if (e.allDay || !e.startTime) {
-    const start = Date.parse(`${e.date}T00:00:00Z`)
-    const end = Date.parse(`${lastDay}T00:00:00Z`) + DAY_MS
+    const start = new Date(`${e.date}T00:00:00`).getTime()
+    const endDate = new Date(`${lastDay}T00:00:00`)
+    // setDate, not + DAY_MS: a DST change makes some days 23 or 25 hours.
+    endDate.setDate(endDate.getDate() + 1)
+    const end = endDate.getTime()
     if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return null
     return { start, end, allDay: true }
   }

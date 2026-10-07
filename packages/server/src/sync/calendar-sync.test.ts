@@ -32,4 +32,18 @@ describe('applyEventsDiff', () => {
     expect(res.upserts).toBe(0)
     expect(res.skipped).toBe(1)
   })
+
+  it('stores all-day events at local midnight of their date', () => {
+    const cache = new Map()
+    applyEventsDiff(
+      cache,
+      'c1',
+      [{ id: 'h', etag: 'e', start: { date: '2026-10-10' }, end: { date: '2026-10-11' } }],
+      Date.now(),
+    )
+    const ev = cache.get('c1::h')
+    expect(ev.allDay).toBe(true)
+    expect(ev.start).toEqual(new Date(2026, 9, 10))
+    expect(ev.end).toEqual(new Date(2026, 9, 11))
+  })
 })

@@ -17,10 +17,14 @@ export interface CachedEvent {
 
 export type EventsCacheMap = Map<string, CachedEvent>
 
+/** All-day events carry a bare date ("2026-10-10"). Store local midnight of
+ * that date, not UTC midnight: the widgets read timestamps in the local zone,
+ * and UTC midnight is the previous evening anywhere west of Greenwich. The
+ * Pi's clock zone is the household's. */
 const toDate = (s: GoogleEvent['start']): { date: Date; allDay: boolean } | null => {
   if (!s) return null
   if (s.dateTime) return { date: new Date(s.dateTime), allDay: false }
-  if (s.date) return { date: new Date(`${s.date}T00:00:00Z`), allDay: true }
+  if (s.date) return { date: new Date(`${s.date}T00:00:00`), allDay: true }
   return null
 }
 
