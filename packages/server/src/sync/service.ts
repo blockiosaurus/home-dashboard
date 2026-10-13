@@ -5,6 +5,7 @@ import { InvalidRefreshTokenError, refreshAccessToken } from '../auth/google'
 import { createTokenCache } from '../auth/token-cache'
 import { createScheduler } from '../scheduler'
 import type { Broker } from '../ws/broker'
+import { adoptPredecessors, markNeedsReconnect, needsReconnect } from './account-repo'
 import {
   getFullSyncAt,
   getSyncToken,
@@ -48,7 +49,8 @@ const upsertCalendar = (
  * Google's own calendar color as a starting `color_override`. When a
  * calendar is the account's primary one, its id is the account's email
  * address, so we backfill `accounts.email` from it (the account row is
- * created with an empty email at OAuth time, before we know this).
+ * created with an empty email at OAuth time, before we know this). Knowing
+ * the email, a reconnect then takes over the account it replaces.
  */
 export const discoverCalendars = async (
   db: Database.Database,
@@ -67,6 +69,15 @@ export const discoverCalendars = async (
     if (r.primary) {
       db.prepare('UPDATE accounts SET email = ? WHERE id = ?').run(r.id, accountId)
     }
+  }
+  const primary = remoteCals.find((r) => r.primary)
+  if (primary) {
+    adoptPredecessors(
+      db,
+      accountId,
+      primary.id,
+      remoteCals.map((r) => r.id),
+    )
   }
 }
 
@@ -115,8 +126,8 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
     running = true
     try {
       const accounts = opts.db
-        .prepare('SELECT id, refresh_token_encrypted FROM accounts')
-        .all() as Array<{ id: string; refresh_token_encrypted: string }>
+        .prepare('SELECT id, email, refresh_token_encrypted FROM accounts')
+        .all() as Array<{ id: string; email: string; refresh_token_encrypted: string }>
 
       // Failures are tallied across the whole tick and written once at the
       // end. Writing per account meant a healthy second account cleared the
@@ -128,8 +139,13 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
       // least some of the cache is fresh — that, and only that, advances
       // lastSyncAt.
       let anyAccountSynced = false
+      const expired: string[] = []
 
       for (const acc of accounts) {
+        if (needsReconnect(opts.db, acc.id)) {
+          expired.push(acc.email || 'a Google account')
+          continue
+        }
         try {
           const refreshToken = enc.decrypt(acc.refresh_token_encrypted)
           const accessToken = await tokenCache.get(refreshToken)
@@ -178,11 +194,13 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
           anyAccountSynced = true
         } catch (err) {
           if (err instanceof InvalidRefreshTokenError) {
-            // Token has been revoked or superseded — most often because the user
-            // re-ran the wizard, creating a fresher account row. Drop the dead
-            // one so future ticks don't crash.
-            console.warn(`removing account ${acc.id}: ${err.message}`)
-            opts.db.prepare('DELETE FROM accounts WHERE id = ?').run(acc.id)
+            // Revoked or expired (Google expires tokens after 7 days while the
+            // OAuth app is in "Testing"). Deleting the account here used to
+            // stop syncing silently while its stale events stayed up; keep it
+            // flagged instead, so the error shows until a reconnect replaces it.
+            console.warn(`account ${acc.id} needs reconnecting: ${err.message}`)
+            markNeedsReconnect(opts.db, acc.id)
+            expired.push(acc.email || 'a Google account')
             continue
           }
           console.error(`sync failed for account ${acc.id}`, err)
@@ -191,17 +209,22 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
       }
 
       // One write per tick. Nothing is written at all when there was nothing
-      // to do (no accounts, or every account row was a dead token we deleted),
+      // to do (no accounts),
       // so a fresh install keeps reading as "never synced".
-      if (anyAccountSynced || accountFailureMessage !== null) {
+      if (anyAccountSynced || accountFailureMessage !== null || expired.length > 0) {
         const calendarSummary =
           calendarFailures === 0
             ? null
             : `${calendarFailures} ${calendarFailures === 1 ? "calendar couldn't" : "calendars couldn't"} sync: ${lastCalendarFailureMessage}`
         writeSyncStatus(opts.db, {
-          // An account that never got a token is the more serious problem, so
-          // it's the one reported when both kinds of failure happened.
-          lastError: accountFailureMessage ?? calendarSummary,
+          // Most actionable first: an account that needs reconnecting, then
+          // one that couldn't get a token, then per-calendar failures.
+          lastError:
+            (expired.length > 0
+              ? `Google access expired for ${expired.join(', ')}. Reconnect in Settings.`
+              : null) ??
+            accountFailureMessage ??
+            calendarSummary,
           // Only advance the timestamp if some account actually synced; a tick
           // where every account failed must keep the previous lastSyncAt.
           ...(anyAccountSynced ? { lastSyncAt: Date.now() } : {}),

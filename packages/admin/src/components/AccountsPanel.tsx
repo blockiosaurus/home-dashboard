@@ -48,9 +48,18 @@ export const AccountsPanel = () => {
               key={a.id}
               className="flex items-center justify-between rounded-lg border border-[var(--text-dim)]/20 p-3"
             >
-              <span className="text-sm font-semibold">
-                Connected as {a.email || 'Google account'}
-              </span>
+              {a.needsReconnect ? (
+                <span className="text-sm">
+                  <span className="font-semibold">{a.email || 'Google account'}</span>
+                  <span className="block text-red-600">
+                    Access expired. Connect this account again to resume syncing.
+                  </span>
+                </span>
+              ) : (
+                <span className="text-sm font-semibold">
+                  Connected as {a.email || 'Google account'}
+                </span>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => disconnect.mutate(a.id)}

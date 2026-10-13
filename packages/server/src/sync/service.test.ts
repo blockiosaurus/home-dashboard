@@ -6,6 +6,7 @@ import { createEncryptor, deriveKey } from '../auth/encryption'
 import * as googleAuth from '../auth/google'
 import { openDatabase } from '../db'
 import { createBroker } from '../ws/broker'
+import { markNeedsReconnect, needsReconnect } from './account-repo'
 import * as googleClient from './google-client'
 import { discoverCalendars, startSyncService } from './service'
 import { loadSyncStatus } from './sync-status'
@@ -75,6 +76,35 @@ describe('discoverCalendars', () => {
       "SELECT summary, color_override, visible FROM calendars WHERE id = 'acc1::c1'",
     )
     expect(row).toMatchObject({ summary: 'New name', color_override: '#111111', visible: 0 })
+    close()
+  })
+
+  it('a reconnected account takes over the expired one with the same email', async () => {
+    const { db, close } = openDatabase(dir)
+    const add = db.raw.prepare(
+      `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+       VALUES (?, 'google', ?, 'x', 'calendar', 0)`,
+    )
+    add.run('old', 'me@x.com')
+    add.run('new', '')
+    db.raw
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible)
+         VALUES ('old::me@x.com', 'old', 'me@x.com', 'Me', 0)`,
+      )
+      .run()
+    markNeedsReconnect(db.raw, 'old')
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([
+      { id: 'me@x.com', summary: 'Me', primary: true },
+    ])
+
+    await discoverCalendars(db.raw, 'TOKEN', 'new')
+
+    expect(db.all('SELECT id FROM accounts')).toEqual([{ id: 'new' }])
+    expect(db.all('SELECT id, visible FROM calendars')).toEqual([
+      { id: 'new::me@x.com', visible: 0 },
+    ])
+    expect(needsReconnect(db.raw, 'old')).toBe(false)
     close()
   })
 
@@ -380,6 +410,55 @@ describe('startSyncService writes sync status per tick', () => {
     const status = loadSyncStatus(db.raw)
     expect(status.lastSyncAt as number).toBeGreaterThanOrEqual(before)
     expect(status.lastError).toBe("1 calendar couldn't sync: calendar API 500")
+
+    sync.stop()
+    close()
+  })
+
+  it('an expired refresh token flags the account instead of deleting it', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const enc = await createEncryptor(await deriveKey('test-machine', saltRow?.value ?? ''))
+    db.raw
+      .prepare(
+        `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+         VALUES ('acc1', 'google', 'me@x.com', ?, 'calendar', 0)`,
+      )
+      .run(enc.encrypt('dead-token'))
+    db.raw
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible)
+         VALUES ('acc1::me@x.com', 'acc1', 'me@x.com', 'Me', 1)`,
+      )
+      .run()
+
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const refresh = vi
+      .spyOn(googleAuth, 'refreshAccessToken')
+      .mockRejectedValue(
+        new googleAuth.InvalidRefreshTokenError('Token has been expired or revoked.'),
+      )
+
+    await sync.runNow()
+
+    expect(db.all('SELECT id FROM accounts')).toEqual([{ id: 'acc1' }])
+    expect(db.all('SELECT id FROM calendars')).toEqual([{ id: 'acc1::me@x.com' }])
+    expect(needsReconnect(db.raw, 'acc1')).toBe(true)
+    const message = 'Google access expired for me@x.com. Reconnect in Settings.'
+    expect(loadSyncStatus(db.raw).lastError).toBe(message)
+
+    // Later ticks don't keep hammering Google with the dead token, but the
+    // error stays up.
+    await sync.runNow()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(loadSyncStatus(db.raw).lastError).toBe(message)
 
     sync.stop()
     close()

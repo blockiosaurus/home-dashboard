@@ -18,6 +18,7 @@ export interface Account {
   email: string
   provider: string
   created_at: number
+  needsReconnect: boolean
 }
 
 export interface Calendar {
