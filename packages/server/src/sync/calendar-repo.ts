@@ -45,6 +45,53 @@ export const deleteEvent = (db: Database.Database, id: string) => {
   db.prepare('DELETE FROM events_cache WHERE id = ?').run(id)
 }
 
+/** Deletes the given cache ids from one calendar; returns rows removed. */
+export const removeEvents = (db: Database.Database, calendarId: string, ids: string[]): number => {
+  const stmt = db.prepare('DELETE FROM events_cache WHERE calendar_id = ? AND id = ?')
+  const tx = db.transaction((rows: string[]) =>
+    rows.reduce((n, id) => n + stmt.run(calendarId, id).changes, 0),
+  )
+  return tx(ids)
+}
+
+/** Deletes a calendar's cached rows overlapping [from, to) whose ids are not
+ * in `keep`. Rows still waiting on the outbox (etag 'pending') aren't in
+ * Google yet, so they're left alone. Returns rows removed. */
+export const pruneEventsNotIn = (
+  db: Database.Database,
+  calendarId: string,
+  window: { from: number; to: number },
+  keep: string[],
+): number => {
+  const keepSet = new Set(keep)
+  const candidates = db
+    .prepare(
+      `SELECT id FROM events_cache
+       WHERE calendar_id = ? AND start < ? AND end > ? AND etag != 'pending'`,
+    )
+    .all(calendarId, window.to, window.from) as Array<{ id: string }>
+  return removeEvents(
+    db,
+    calendarId,
+    candidates.map((r) => r.id).filter((id) => !keepSet.has(id)),
+  )
+}
+
+const fullSyncKey = (calendarId: string) => `calendar_full_sync_at:${calendarId}`
+
+export const getFullSyncAt = (db: Database.Database, calendarId: string): number | null => {
+  const row = db.prepare('SELECT value FROM kv WHERE key = ?').get(fullSyncKey(calendarId)) as
+    | { value: string }
+    | undefined
+  return row ? Number(row.value) : null
+}
+
+export const setFullSyncAt = (db: Database.Database, calendarId: string, at: number) => {
+  db.prepare(
+    'INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
+  ).run(fullSyncKey(calendarId), String(at))
+}
+
 export const setSyncToken = (db: Database.Database, calendarId: string, token: string | null) => {
   db.prepare('UPDATE calendars SET sync_token = ? WHERE id = ?').run(token, calendarId)
 }

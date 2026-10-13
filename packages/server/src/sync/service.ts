@@ -5,7 +5,15 @@ import { InvalidRefreshTokenError, refreshAccessToken } from '../auth/google'
 import { createTokenCache } from '../auth/token-cache'
 import { createScheduler } from '../scheduler'
 import type { Broker } from '../ws/broker'
-import { getSyncToken, setSyncToken, upsertEvents } from './calendar-repo'
+import {
+  getFullSyncAt,
+  getSyncToken,
+  pruneEventsNotIn,
+  removeEvents,
+  setFullSyncAt,
+  setSyncToken,
+  upsertEvents,
+} from './calendar-repo'
 import type { CachedEvent } from './calendar-sync'
 import { listCalendars, listEvents } from './google-client'
 import { syncCalendarOnce } from './runner'
@@ -147,10 +155,15 @@ export const startSyncService = async (opts: SyncServiceOptions): Promise<SyncSe
                 calendarId: c.id,
                 accessToken,
                 currentSyncToken: getSyncToken(opts.db, c.id),
+                lastFullSyncAt: getFullSyncAt(opts.db, c.id),
+                fullSyncIntervalMs: 86_400_000,
                 timeWindowDays: 90,
                 list: (token, _, args) => listEvents(token, c.google_calendar_id, args),
                 persist: (_calId, events: CachedEvent[]) => upsertEvents(opts.db, events),
+                remove: (calId, ids) => removeEvents(opts.db, calId, ids),
+                prune: (calId, window, keep) => pruneEventsNotIn(opts.db, calId, window, keep),
                 setToken: (calId, token) => setSyncToken(opts.db, calId, token),
+                setFullSyncAt: (calId, at) => setFullSyncAt(opts.db, calId, at),
                 now: Date.now,
               })
               if (result.upserts + result.deletes > 0) {

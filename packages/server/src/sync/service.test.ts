@@ -217,6 +217,77 @@ describe('startSyncService writes sync status per tick', () => {
     close()
   })
 
+  it('re-lists the window for a token-only calendar and drops events Google cancelled', async () => {
+    const { db, close } = openDatabase(dir)
+    const broker = createBroker()
+    const sync = await startSyncService({
+      db: db.raw,
+      broker,
+      config: { googleClientId: 'client-id', googleClientSecret: 'client-secret' },
+      machineId: 'test-machine',
+    })
+
+    const saltRow = db.get<{ value: string }>("SELECT value FROM kv WHERE key='salt'")
+    const key = await deriveKey('test-machine', saltRow?.value ?? '')
+    const enc = await createEncryptor(key)
+    db.raw
+      .prepare(
+        `INSERT INTO accounts (id, provider, email, refresh_token_encrypted, scopes, created_at)
+         VALUES ('acc1', 'google', '', ?, 'calendar', 0)`,
+      )
+      .run(enc.encrypt('a-refresh-token'))
+    // A calendar synced before full-sync tracking existed: it has a token,
+    // and a cached event that has since been deleted in Google.
+    db.raw
+      .prepare(
+        `INSERT INTO calendars (id, account_id, google_calendar_id, summary, visible, sync_token)
+         VALUES ('acc1::cal', 'acc1', 'cal', 'Home', 1, 'OLD')`,
+      )
+      .run()
+    const soon = Date.now() + 86_400_000
+    db.raw
+      .prepare(
+        `INSERT INTO events_cache
+           (id, calendar_id, google_event_id, etag, start, end, all_day, title, last_synced_at)
+         VALUES ('acc1::cal::ghost', 'acc1::cal', 'ghost', 'e', ?, ?, 0, 'Ghost', 0)`,
+      )
+      .run(soon, soon + 3_600_000)
+
+    vi.spyOn(googleAuth, 'refreshAccessToken').mockResolvedValue({
+      accessToken: 'ACCESS_TOKEN',
+      expiresAt: Date.now() + 3_600_000,
+    })
+    vi.spyOn(googleClient, 'listCalendars').mockResolvedValue([])
+    const far = new Date(Date.now() + 80 * 86_400_000).toISOString()
+    const list = vi.spyOn(googleClient, 'listEvents').mockResolvedValue({
+      events: [
+        {
+          id: 'far',
+          etag: 'e',
+          summary: 'Far future',
+          start: { dateTime: far },
+          end: { dateTime: far },
+        },
+      ],
+      nextSyncToken: 'NEW',
+    })
+
+    await sync.runNow()
+
+    expect(list.mock.calls[0]?.[2]).toHaveProperty('timeMax')
+    expect(list.mock.calls[0]?.[2]).not.toHaveProperty('syncToken')
+    const ids = db.all<{ id: string }>('SELECT id FROM events_cache').map((r) => r.id)
+    expect(ids).toEqual(['acc1::cal::far'])
+
+    // Next tick within the day goes back to the cheap token sync.
+    list.mockResolvedValue({ events: [], nextSyncToken: 'NEWER' })
+    await sync.runNow()
+    expect(list.mock.calls[1]?.[2]).toEqual({ syncToken: 'NEW' })
+
+    sync.stop()
+    close()
+  })
+
   it('a calendar whose events fail to list records lastError but still advances lastSyncAt', async () => {
     const { db, close } = openDatabase(dir)
     const broker = createBroker()
